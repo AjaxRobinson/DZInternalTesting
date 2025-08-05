@@ -1,9 +1,16 @@
 /**
  * Google Drive Service for handling spreadsheet data and image uploads
  * This service uses Google Apps Script as a backend proxy to handle authentication
+ * 
+ * MOCK_MODE: Currently set to true for testing without a deployed backend.
+ * To use real Google Apps Script backend:
+ * 1. Deploy the Google Apps Script (see GOOGLE_APPS_SCRIPT_DEPLOYMENT.md)
+ * 2. Update GOOGLE_APPS_SCRIPT_URL with your deployed script URL
+ * 3. Set MOCK_MODE to false
  */
 
-const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYED_SCRIPT_ID_HERE/exec'; // Replace with actual deployed script URL
+// Configuration
+const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw3mgxQFVg8aUKTChixEzF_6Z7rPEEVXYDLwvysDD4OLcOzk1_OomvjygjWADdgkcb4/exec';
 const SPREADSHEET_ID = '1ijH_CALFSduEmzpiRfXUANvcg4uYX_kMnWoSIQ6YuoE';
 const IMAGES_FOLDER_ID = '1hjb0LiweW7LqWA-F20KuBvv0UdIprZnF';
 

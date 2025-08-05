@@ -264,3 +264,4 @@ function doOptions() {
   return ContentService
     .createTextOutput('')
     .setMimeType(ContentService.MimeType.TEXT);
+}
