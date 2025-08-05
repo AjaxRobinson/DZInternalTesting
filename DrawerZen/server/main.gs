@@ -15,26 +15,36 @@ function doPost(e) {
     
     switch (data.action) {
       case 'submitData':
-        return submitCustomerData(data);
+        return addCorsHeaders(submitCustomerData(data));
       case 'updateData':
-        return updateCustomerData(data);
+        return addCorsHeaders(updateCustomerData(data));
       case 'getData':
-        return getCustomerData(data);
+        return addCorsHeaders(getCustomerData(data));
       case 'uploadImage':
-        return uploadImageToFolder(data);
+        return addCorsHeaders(uploadImageToFolder(data));
       case 'appendOrderLog':
-        return appendOrderLog(data);
+        return addCorsHeaders(appendOrderLog(data));
       default:
-        return ContentService
+        return addCorsHeaders(ContentService
           .createTextOutput(JSON.stringify({ success: false, error: 'Invalid action' }))
-          .setMimeType(ContentService.MimeType.JSON);
+          .setMimeType(ContentService.MimeType.JSON));
     }
   } catch (error) {
     console.error('Error in doPost:', error);
-    return ContentService
+    return addCorsHeaders(ContentService
       .createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON));
   }
+}
+
+/**
+ * Add CORS headers to response
+ */
+function addCorsHeaders(response) {
+  return response
+    .addHeader('Access-Control-Allow-Origin', '*')
+    .addHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .addHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
 /**
@@ -258,10 +268,13 @@ function appendOrderLog(requestData) {
 }
 
 /**
- * Handle OPTIONS requests for CORS
+ * Handle OPTIONS requests for CORS preflight
  */
 function doOptions() {
   return ContentService
     .createTextOutput('')
-    .setMimeType(ContentService.MimeType.TEXT);
+    .setMimeType(ContentService.MimeType.TEXT)
+    .addHeader('Access-Control-Allow-Origin', '*')
+    .addHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .addHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
