@@ -1,0 +1,585 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import styled from 'styled-components';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, Box, Grid } from '@react-three/drei';
+import { loadStripe } from '@stripe/stripe-js'; // Add this import
+import { GRID_SIZE } from '../LayoutDesigner/LayoutDesigner.constants';
+
+const CheckoutContainer = styled.div`
+  max-width: 1200px;
+  margin: 0 auto;
+`;
+
+const CheckoutGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-top: 2rem;
+  
+  @media (max-width: 968px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const FormSection = styled.div`
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+`;
+
+const VisualizationSection = styled.div`
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  height: fit-content;
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 1.5rem;
+`;
+
+const Label = styled.label`
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #374151;
+`;
+
+const Input = styled.input`
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+  
+  &:focus {
+    outline: none;
+    border-color: #4f46e5;
+  }
+  
+  &::placeholder {
+    color: #9ca3af;
+  }
+`;
+
+const InputRow = styled.div`
+  display: grid;
+  grid-template-columns: ${props => props.columns || '1fr'};
+  gap: 1rem;
+`;
+
+const Select = styled.select`
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  background: white;
+  
+  &:focus {
+    outline: none;
+    border-color: #4f46e5;
+  }
+`;
+
+const CanvasContainer = styled.div`
+  height: 400px;
+  background: #f9fafb;
+  border-radius: 8px;
+  overflow: hidden;
+`;
+
+const OrderSummary = styled.div`
+  background: #f3f4f6;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-top: 2rem;
+`;
+
+const SummaryRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  color: ${props => props.total ? '#1f2937' : '#6b7280'};
+  font-weight: ${props => props.total ? '700' : '400'};
+  font-size: ${props => props.total ? '1.125rem' : '1rem'};
+  padding-top: ${props => props.total ? '1rem' : '0'};
+  border-top: ${props => props.total ? '2px solid #e5e7eb' : 'none'};
+`;
+
+const SubmitButton = styled.button`
+  width: 100%;
+  padding: 1rem;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 2rem;
+  
+  &:hover:not(:disabled) {
+    background: #4338ca;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  }
+  
+  &:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
+
+const PaymentMethods = styled.div`
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+`;
+
+const PaymentMethod = styled.button`
+  flex: 1;
+  padding: 1rem;
+  border: 2px solid ${props => props.selected ? '#4f46e5' : '#e5e7eb'};
+  background: ${props => props.selected ? '#ede9fe' : 'white'};
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    border-color: #4f46e5;
+  }
+`;
+
+const ErrorMessage = styled.div`
+  background: #fee;
+  color: #dc2626;
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+`;
+
+const SuccessMessage = styled.div`
+  background: #d1fae5;
+  color: #065f46;
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+`;
+
+// 3D Drawer Preview Component
+function DrawerPreview({ layoutConfig, drawerDimensions }) {
+  const scale = 0.002; // Scale down for visualization
+  
+  return (
+    <Canvas camera={{ position: [10, 10, 10], fov: 50 }}>
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
+      
+      {/* Drawer base */}
+      <Box 
+        args={[
+          drawerDimensions.width * scale,
+          0.1,
+          drawerDimensions.length * scale
+        ]} 
+        position={[0, -0.1, 0]}
+      >
+        <meshStandardMaterial color="#e5e7eb" />
+      </Box>
+      
+      {/* Drawer walls */}
+      {/* Front wall */}
+      <Box 
+        args={[drawerDimensions.width * scale, drawerDimensions.height * scale * 0.5, 0.05]} 
+        position={[0, drawerDimensions.height * scale * 0.25, drawerDimensions.length * scale * 0.5]}
+      >
+        <meshStandardMaterial color="#d1d5db" transparent opacity={0.3} />
+      </Box>
+      
+      {/* Back wall */}
+      <Box 
+        args={[drawerDimensions.width * scale, drawerDimensions.height * scale * 0.5, 0.05]} 
+        position={[0, drawerDimensions.height * scale * 0.25, -drawerDimensions.length * scale * 0.5]}
+      >
+        <meshStandardMaterial color="#d1d5db" transparent opacity={0.3} />
+      </Box>
+      
+      {/* Left wall */}
+      <Box 
+        args={[0.05, drawerDimensions.height * scale * 0.5, drawerDimensions.length * scale]} 
+        position={[-drawerDimensions.width * scale * 0.5, drawerDimensions.height * scale * 0.25, 0]}
+      >
+        <meshStandardMaterial color="#d1d5db" transparent opacity={0.3} />
+      </Box>
+      
+      {/* Right wall */}
+      <Box 
+        args={[0.05, drawerDimensions.height * scale * 0.5, drawerDimensions.length * scale]} 
+        position={[drawerDimensions.width * scale * 0.5, drawerDimensions.height * scale * 0.25, 0]}
+      >
+        <meshStandardMaterial color="#d1d5db" transparent opacity={0.3} />
+      </Box>
+      
+      {/* Render bins */}
+      {layoutConfig && Array.isArray(layoutConfig) && layoutConfig.map((bin) => {
+        // Convert mm to grid position and then to 3D coordinates
+        const gridX = bin.x / 21; // Convert from mm to grid cells
+        const gridY = bin.y / 21; // Convert from mm to grid cells
+        
+        const x = (gridX * 21 - drawerDimensions.width / 2 + bin.width / 2) * scale;
+        const z = (gridY * 21 - drawerDimensions.length / 2 + bin.length / 2) * scale;
+        const y = bin.height * scale / 2;
+        
+        // Use bin color or default
+        const color = bin.color || '#3b82f6';
+
+        return (
+          <Box
+            key={bin.id}
+            args={[bin.width * scale, bin.height * scale, bin.length * scale]}
+            position={[x, y, z]}
+          >
+            <meshStandardMaterial color={color} />
+          </Box>
+        );
+      })}
+      
+      <Grid args={[20, 20]} cellSize={1} cellColor="#999" sectionColor="#666" />
+      <OrbitControls enablePan={false} enableZoom={true} enableRotate={true} />
+    </Canvas>
+  );
+}
+
+// Stripe key (replace with your actual key)
+const stripePromise = loadStripe('pk_test_your_stripe_key_here');
+
+export default function Checkout({ orderData, layoutConfig, drawerDimensions }) {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    email: '',
+    firstName: '',
+    lastName: '',
+    address: '',
+    apartment: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: 'US',
+    phone: '',
+    cardNumber: '',
+    cardExpiry: '',
+    cardCVC: ''
+  });
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+
+  // Use the final total from order data (already includes baseplate cost)
+  const finalTotal = orderData.total;
+
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData({
+      ...formData,
+      [name]: type === 'checkbox' ? checked : value
+    });
+  };
+
+  const validateForm = () => {
+    const required = ['email', 'firstName', 'lastName', 'address', 'city', 'state', 'zipCode'];
+    for (const field of required) {
+      if (!formData[field]) {
+        setError(`Please fill in ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+        return false;
+      }
+    }
+    
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsProcessing(true);
+    
+    try {
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // In a real app, you would:
+      // 1. Create payment intent on your backend
+      // 2. Confirm payment with Stripe
+      // 3. Save order to database
+      // 4. Send confirmation email
+      
+      setSuccess(true);
+      
+      // Redirect to success page after 2 seconds
+      setTimeout(() => {
+        window.location.href = '/order-success';
+      }, 2000);
+      
+    } catch (err) {
+      setError('Payment failed. Please try again.');
+      setIsProcessing(false);
+    }
+  };
+
+  const states = [
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+  ];
+
+  return (
+    <CheckoutContainer>
+      <h1>Checkout</h1>
+      <p>Complete your order and we'll start crafting your custom storage solution</p>
+
+      <CheckoutGrid>
+        <FormSection>
+          <h2>Shipping Information</h2>
+          
+          {error && <ErrorMessage>{error}</ErrorMessage>}
+          {success && <SuccessMessage>Order placed successfully! Redirecting...</SuccessMessage>}
+          
+          <form onSubmit={handleSubmit}>
+            <FormGroup>
+              <Label>Email</Label>
+              <Input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="your@email.com"
+                required
+              />
+            </FormGroup>
+
+            <InputRow columns="1fr 1fr">
+              <FormGroup>
+                <Label>First Name</Label>
+                <Input
+                  type="text"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleInputChange}
+                  required
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>Last Name</Label>
+                <Input
+                  type="text"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleInputChange}
+                  required
+                />
+              </FormGroup>
+            </InputRow>
+
+            <FormGroup>
+              <Label>Address</Label>
+              <Input
+                type="text"
+                name="address"
+                value={formData.address}
+                onChange={handleInputChange}
+                placeholder="123 Main Street"
+                required
+              />
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Apartment, suite, etc. (optional)</Label>
+              <Input
+                type="text"
+                name="apartment"
+                value={formData.apartment}
+                onChange={handleInputChange}
+                placeholder="Apt 4B"
+              />
+            </FormGroup>
+
+            <InputRow columns="2fr 1fr 1fr">
+              <FormGroup>
+                <Label>City</Label>
+                <Input
+                  type="text"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  required
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>State</Label>
+                <Select
+                  name="state"
+                  value={formData.state}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="">Select</option>
+                  {states.map(state => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </Select>
+              </FormGroup>
+              <FormGroup>
+                <Label>ZIP Code</Label>
+                <Input
+                  type="text"
+                  name="zipCode"
+                  value={formData.zipCode}
+                  onChange={handleInputChange}
+                  pattern="[0-9]{5}"
+                  required
+                />
+              </FormGroup>
+            </InputRow>
+
+            <FormGroup>
+              <Label>Phone Number</Label>
+              <Input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleInputChange}
+                placeholder="(555) 123-4567"
+              />
+            </FormGroup>
+
+            <h3 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Payment Method</h3>
+            
+            <PaymentMethods>
+              <PaymentMethod
+                type="button"
+                selected={paymentMethod === 'card'}
+                onClick={() => setPaymentMethod('card')}
+              >
+                Credit Card
+              </PaymentMethod>
+              <PaymentMethod
+                type="button"
+                selected={paymentMethod === 'paypal'}
+                onClick={() => setPaymentMethod('paypal')}
+              >
+                PayPal
+              </PaymentMethod>
+            </PaymentMethods>
+
+            {paymentMethod === 'card' && (
+              <>
+                <FormGroup>
+                  <Label>Card Number</Label>
+                  <Input
+                    type="text"
+                    name="cardNumber"
+                    value={formData.cardNumber}
+                    onChange={handleInputChange}
+                    placeholder="1234 5678 9012 3456"
+                    required
+                  />
+                </FormGroup>
+                
+                <InputRow columns="1fr 1fr">
+                  <FormGroup>
+                    <Label>Expiration</Label>
+                    <Input
+                      type="text"
+                      name="cardExpiry"
+                      value={formData.cardExpiry}
+                      onChange={handleInputChange}
+                      placeholder="MM/YY"
+                      required
+                    />
+                  </FormGroup>
+                  <FormGroup>
+                    <Label>CVC</Label>
+                    <Input
+                      type="text"
+                      name="cardCVC"
+                      value={formData.cardCVC}
+                      onChange={handleInputChange}
+                      placeholder="123"
+                      required
+                    />
+                  </FormGroup>
+                </InputRow>
+              </>
+            )}
+
+            <SubmitButton type="submit" disabled={isProcessing}>
+              {isProcessing ? 'Processing...' : `Place Order - $${orderData.total.toFixed(2)}`}
+            </SubmitButton>
+          </form>
+        </FormSection>
+
+        <VisualizationSection>
+          <h2>Your Custom Drawer</h2>
+          <p style={{ marginBottom: '1rem', color: '#6b7280' }}>
+            3D preview of your configured drawer
+          </p>
+          
+          <CanvasContainer>
+            <DrawerPreview 
+              layoutConfig={orderData.bins} 
+              drawerDimensions={drawerDimensions}
+            />
+          </CanvasContainer>
+          
+          <OrderSummary>
+            <h3>Order Summary</h3>
+            <SummaryRow>
+              <span>Bins ({orderData.bins.length} items)</span>
+              <span>${(orderData.subtotal - (orderData.baseplateCost || 0)).toFixed(2)}</span>
+            </SummaryRow>
+            <SummaryRow>
+              <span>Baseplate</span>
+              <span>${(orderData.baseplateCost || 0).toFixed(2)}</span>
+            </SummaryRow>
+            <SummaryRow>
+              <span>Shipping</span>
+              <span>{orderData.shipping === 0 ? 'FREE' : `$${orderData.shipping.toFixed(2)}`}</span>
+            </SummaryRow>
+            {orderData.discount > 0 && (
+              <SummaryRow>
+                <span>Discount ({orderData.discount}%)</span>
+                <span>-${(orderData.subtotal * orderData.discount / 100).toFixed(2)}</span>
+              </SummaryRow>
+            )}
+            <SummaryRow total>
+              <span>Total</span>
+              <span>${finalTotal.toFixed(2)}</span>
+            </SummaryRow>
+          </OrderSummary>
+        </VisualizationSection>
+      </CheckoutGrid>
+    </CheckoutContainer>
+  );
+}
