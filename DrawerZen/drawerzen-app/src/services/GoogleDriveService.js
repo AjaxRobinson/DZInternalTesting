@@ -3,7 +3,7 @@
  * This service uses Google Apps Script as a backend proxy to handle authentication
  */
 
-const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw8HK0Q_qGnD_123456789/exec'; // Replace with actual deployed script URL
+const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYED_SCRIPT_ID_HERE/exec'; // Replace with actual deployed script URL
 const SPREADSHEET_ID = '1ijH_CALFSduEmzpiRfXUANvcg4uYX_kMnWoSIQ6YuoE';
 const IMAGES_FOLDER_ID = '1hjb0LiweW7LqWA-F20KuBvv0UdIprZnF';
 
