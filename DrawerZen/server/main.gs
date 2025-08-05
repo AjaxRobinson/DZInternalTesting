@@ -8,40 +8,65 @@ const SPREADSHEET_ID = '1ijH_CALFSduEmzpiRfXUANvcg4uYX_kMnWoSIQ6YuoE';
 const IMAGES_FOLDER_ID = '1hjb0LiweW7LqWA-F20KuBvv0UdIprZnF';
 
 /**
- * Handle GET requests
+ * Handle GET requests - now also handles data requests via URL parameters
  */
 function doGet(e) {
-  // Respond with CORS headers and no body
-  return ContentService.createTextOutput('')
-    .setMimeType(ContentService.MimeType.TEXT)
-    .setHeader('Access-Control-Allow-Origin', '*')
-    .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
-    .setHeader('Access-Control-Allow-Headers', 'Content-Type');
-}
-
-/**
- * Handle OPTIONS requests (CORS preflight)
- */
-function doOptions(e) {
-  // Respond with CORS headers for preflight
-  return ContentService.createTextOutput('')
-    .setMimeType(ContentService.MimeType.TEXT)
-    .setHeader('Access-Control-Allow-Origin', '*')
-    .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
-    .setHeader('Access-Control-Allow-Headers', 'Content-Type')
-    .setHeader('Access-Control-Max-Age', '86400');
+  try {
+    // Check if there's data in the URL parameters
+    if (e.parameter && e.parameter.data) {
+      const data = JSON.parse(e.parameter.data);
+      
+      let result;
+      switch (data.action) {
+        case 'submitData':
+          result = submitCustomerData(data);
+          break;
+        case 'updateData':
+          result = updateCustomerData(data);
+          break;
+        case 'getData':
+          result = getCustomerData(data);
+          break;
+        case 'uploadImage':
+          result = uploadImageToFolder(data);
+          break;
+        case 'appendOrderLog':
+          result = appendOrderLog(data);
+          break;
+        default:
+          result = { success: false, error: 'Invalid action' };
+      }
+      
+      return ContentService
+        .createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON)
+        .setHeader('Access-Control-Allow-Origin', '*')
+        .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+        .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    } else {
+      // Default response for basic GET requests
+      return ContentService
+        .createTextOutput(JSON.stringify({ message: 'DrawerZen API is running' }))
+        .setMimeType(ContentService.MimeType.JSON)
+        .setHeader('Access-Control-Allow-Origin', '*')
+        .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+        .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    }
+  } catch (error) {
+    console.error('Error in doGet:', error);
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeader('Access-Control-Allow-Origin', '*')
+      .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+      .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  }
 }
 
 /**
  * Generic handler for POST requests from your site
  */
 function doPost(e) {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
-
   try {
     let data;
     
@@ -87,13 +112,18 @@ function doPost(e) {
     return ContentService
       .createTextOutput(JSON.stringify(result))
       .setMimeType(ContentService.MimeType.JSON)
-      .setHeaders(corsHeaders);
+      .setHeader('Access-Control-Allow-Origin', '*')
+      .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+      .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      
   } catch (error) {
     console.error('Error in doPost:', error);
     return ContentService
       .createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
       .setMimeType(ContentService.MimeType.JSON)
-      .setHeaders(corsHeaders);
+      .setHeader('Access-Control-Allow-Origin', '*')
+      .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+      .setHeader('Access-Control-Allow-Headers', 'Content-Type');
   }
 }
 
