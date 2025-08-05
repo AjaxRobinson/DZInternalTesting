@@ -36,12 +36,12 @@ export const useDataManagement = () => {
   }, []);
 
   /**
-   * Initialize data from localStorage or server
+   * Initialize data from sessionStorage or server
    */
   const initializeData = async () => {
     setIsLoading(true);
     try {
-      // First try to load from localStorage
+      // First try to load from sessionStorage
       const localData = GoogleDriveService.loadSessionFromLocal();
       if (localData) {
         setAppData(localData);

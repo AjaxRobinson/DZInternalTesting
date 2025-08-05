@@ -217,26 +217,26 @@ class GoogleDriveService {
   }
 
   /**
-   * Save current session to localStorage for persistence across page refreshes
+   * Save current session to sessionStorage for persistence during current browser session
    */
   saveSessionToLocal(data) {
     try {
-      localStorage.setItem('drawerzen_session', JSON.stringify({
+      sessionStorage.setItem('drawerzen_session', JSON.stringify({
         sessionId: this.sessionId,
         data: data,
         timestamp: Date.now()
       }));
     } catch (error) {
-      console.error('Error saving session to localStorage:', error);
+      console.error('Error saving session to sessionStorage:', error);
     }
   }
 
   /**
-   * Load session from localStorage
+   * Load session from sessionStorage
    */
   loadSessionFromLocal() {
     try {
-      const sessionData = localStorage.getItem('drawerzen_session');
+      const sessionData = sessionStorage.getItem('drawerzen_session');
       if (sessionData) {
         const parsed = JSON.parse(sessionData);
         // Check if session is not older than 24 hours
@@ -245,12 +245,12 @@ class GoogleDriveService {
           return parsed.data;
         } else {
           // Clear old session
-          localStorage.removeItem('drawerzen_session');
+          sessionStorage.removeItem('drawerzen_session');
         }
       }
       return null;
     } catch (error) {
-      console.error('Error loading session from localStorage:', error);
+      console.error('Error loading session from sessionStorage:', error);
       return null;
     }
   }
@@ -259,7 +259,7 @@ class GoogleDriveService {
    * Clear current session
    */
   clearSession() {
-    localStorage.removeItem('drawerzen_session');
+    sessionStorage.removeItem('drawerzen_session');
     this.sessionId = this.generateSessionId();
   }
 
