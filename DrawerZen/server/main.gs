@@ -8,21 +8,32 @@ const SPREADSHEET_ID = '1ijH_CALFSduEmzpiRfXUANvcg4uYX_kMnWoSIQ6YuoE';
 const IMAGES_FOLDER_ID = '1hjb0LiweW7LqWA-F20KuBvv0UdIprZnF';
 
 /**
- * Handle GET requests (for CORS preflight and basic requests)
+ * Handle GET/OPTIONS requests (needed for CORS preflight)
  */
 function doGet(e) {
-  return createCorsResponse({ message: 'DrawerZen API is running' });
+  // Respond with CORS headers and no body
+  return ContentService.createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT)
+    .setHeader('Access-Control-Allow-Origin', 'https://ajaxrobinson.github.io')
+    .setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
 /**
- * Main entry point for web app requests
+ * Generic handler for POST requests from your site
  */
 function doPost(e) {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': 'https://ajaxrobinson.github.io',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
   try {
     let data;
     
     // Handle both JSON and form data
-    if (e.postData.contents) {
+    if (e.postData && e.postData.contents) {
       // Try to parse as JSON first
       try {
         data = JSON.parse(e.postData.contents);
@@ -60,26 +71,17 @@ function doPost(e) {
         result = { success: false, error: 'Invalid action' };
     }
     
-    return createCorsResponse(result);
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeaders(corsHeaders);
   } catch (error) {
     console.error('Error in doPost:', error);
-    return createCorsResponse({ success: false, error: error.toString() });
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeaders(corsHeaders);
   }
-}
-
-/**
- * Create response with CORS headers
- */
-function createCorsResponse(data) {
-  const jsonData = typeof data === 'string' ? data : JSON.stringify(data);
-  
-  return ContentService
-    .createTextOutput(jsonData)
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeader('Access-Control-Allow-Origin', '*')
-    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    .setHeader('Access-Control-Max-Age', '86400');
 }
 
 /**
@@ -571,17 +573,4 @@ function appendOrderLog(requestData) {
       .createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
-}
-
-/**
- * Handle OPTIONS requests for CORS preflight
- */
-function doOptions() {
-  return ContentService
-    .createTextOutput('')
-    .setMimeType(ContentService.MimeType.TEXT)
-    .setHeader('Access-Control-Allow-Origin', '*')
-    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    .setHeader('Access-Control-Max-Age', '86400');
 }
