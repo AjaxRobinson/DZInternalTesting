@@ -146,6 +146,9 @@ function AppContent({ dataManager, defaultBins }) {
 
           {/* Order Success Page */}
           <Route path="/order-success" element={<OrderSuccess />} />
+          
+          {/* Catch-all route - redirect any unrecognized paths to root */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ErrorBoundary>
     </MainContent>
