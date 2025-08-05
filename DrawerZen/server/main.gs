@@ -8,15 +8,28 @@ const SPREADSHEET_ID = '1ijH_CALFSduEmzpiRfXUANvcg4uYX_kMnWoSIQ6YuoE';
 const IMAGES_FOLDER_ID = '1hjb0LiweW7LqWA-F20KuBvv0UdIprZnF';
 
 /**
- * Handle GET/OPTIONS requests (needed for CORS preflight)
+ * Handle GET requests
  */
 function doGet(e) {
   // Respond with CORS headers and no body
   return ContentService.createTextOutput('')
     .setMimeType(ContentService.MimeType.TEXT)
-    .setHeader('Access-Control-Allow-Origin', 'https://ajaxrobinson.github.io')
-    .setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    .setHeader('Access-Control-Allow-Origin', '*')
+    .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
     .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+/**
+ * Handle OPTIONS requests (CORS preflight)
+ */
+function doOptions(e) {
+  // Respond with CORS headers for preflight
+  return ContentService.createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT)
+    .setHeader('Access-Control-Allow-Origin', '*')
+    .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    .setHeader('Access-Control-Max-Age', '86400');
 }
 
 /**
@@ -24,8 +37,8 @@ function doGet(e) {
  */
 function doPost(e) {
   const corsHeaders = {
-    'Access-Control-Allow-Origin': 'https://ajaxrobinson.github.io',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
 
@@ -39,8 +52,8 @@ function doPost(e) {
         data = JSON.parse(e.postData.contents);
       } catch (jsonError) {
         // If JSON parsing fails, try to get from form data
-        const formData = e.postData.getDataAsString();
-        const params = new URLSearchParams(formData);
+        const formDataString = e.postData.getDataAsString();
+        const params = new URLSearchParams(formDataString);
         data = JSON.parse(params.get('data') || '{}');
       }
     } else if (e.parameter && e.parameter.data) {

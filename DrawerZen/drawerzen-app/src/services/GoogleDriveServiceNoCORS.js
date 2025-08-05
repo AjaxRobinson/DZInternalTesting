@@ -16,16 +16,16 @@ class GoogleDriveServiceNoCORS {
   }
 
   /**
-   * Make request using JSON to match the Apps Script expectations
+   * Make request using FormData to avoid CORS preflight
    */
   async makeRequest(payload) {
     try {
+      const formData = new FormData();
+      formData.append('data', JSON.stringify(payload));
+      
       const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
+        body: formData
       });
 
       if (!response.ok) {
