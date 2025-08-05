@@ -315,13 +315,29 @@ export default function OrderReview({ bins = {}, drawerDimensions, onProceedToCh
   // Use server-side data if available, otherwise fallback to props
   const serverData = dataManager?.appData;
   const actualDrawerDimensions = serverData?.drawerDimensions || drawerDimensions;
-  const actualPlacedBins = serverData?.layoutConfig || placedBins;
+  const layoutData = serverData?.layoutConfig || placedBins;
+  
+  // Debug logging
+  console.log('OrderReview - layoutData:', layoutData);
+  console.log('OrderReview - serverData?.layoutConfig:', serverData?.layoutConfig);
+  console.log('OrderReview - placedBins:', placedBins);
+  
+  // Ensure actualPlacedBins is always an array
+  const actualPlacedBins = Array.isArray(layoutData) ? layoutData : 
+                          (layoutData && Array.isArray(layoutData.bins)) ? layoutData.bins :
+                          [];
 
   // Convert dimensions to cells
   const drawerCellsX = Math.ceil(actualDrawerDimensions.width / GRID_SIZE);
   const drawerCellsY = Math.ceil(actualDrawerDimensions.length / GRID_SIZE);
 
   const calculateSubtotal = () => {
+    // Ensure actualPlacedBins is an array before calling reduce
+    if (!Array.isArray(actualPlacedBins)) {
+      console.warn('actualPlacedBins is not an array:', actualPlacedBins);
+      return 0;
+    }
+    
     const binsTotal = actualPlacedBins.reduce((total, bin) => total + calculateBinPrice(bin), 0);
     const baseplateTotal = calculateBaseplateCost(actualDrawerDimensions);
     return binsTotal + baseplateTotal;
@@ -466,7 +482,9 @@ export default function OrderReview({ bins = {}, drawerDimensions, onProceedToCh
         <TotalSection>
           <div>
             <p style={{ color: '#6b7280', marginBottom: '0.5rem' }}>
-              Bins: ${actualPlacedBins.reduce((total, bin) => total + calculateBinPrice(bin), 0).toFixed(2)}
+              Bins: ${Array.isArray(actualPlacedBins) ? 
+                actualPlacedBins.reduce((total, bin) => total + calculateBinPrice(bin), 0).toFixed(2) : 
+                '0.00'}
             </p>
             <p style={{ color: '#6b7280', marginBottom: '0.5rem' }}>
               Baseplate: ${calculateBaseplateCost(actualDrawerDimensions).toFixed(2)}
