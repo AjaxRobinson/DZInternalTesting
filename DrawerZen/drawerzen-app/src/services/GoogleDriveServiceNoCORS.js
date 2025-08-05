@@ -4,7 +4,7 @@
  */
 
 // Configuration
-const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw3mgxQFVg8aUKTChixEzF_6Z7rPEEVXYDLwvysDD4OLcOzk1_OomvjygjWADdgkcb4/exec';
+const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyYMt7qGveAZtMDITn5WSOAzXGq_GOoXDAdqzwbIsqkeEWRpiuHXhii_e7PWewordqY/exec';
 
 class GoogleDriveServiceNoCORS {
   constructor() {
