@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import GoogleDriveService from '../services/GoogleDriveService';
+import GoogleDriveService from '../services/GoogleDriveServiceNoCORS';
 
 /**
  * Custom hook for managing application data with automatic persistence

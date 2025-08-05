@@ -4,7 +4,7 @@ import styled from 'styled-components';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Box, Grid } from '@react-three/drei';
 import { GRID_SIZE } from '../LayoutDesigner/LayoutDesigner.constants';
-import GoogleDriveService from '../../services/GoogleDriveService';
+import GoogleDriveService from '../../services/GoogleDriveServiceNoCORS';
 
 const CheckoutContainer = styled.div`
   max-width: 1200px;
@@ -350,7 +350,22 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
       ];
       
       // Log the order to the spreadsheet
-      await GoogleDriveService.appendOrderLog(row);
+      await GoogleDriveService.appendOrderLog({
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        address: formData.address,
+        apartment: formData.apartment,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode,
+        country: formData.country,
+        drawerDimensions: appData.drawerDimensions,
+        bins: appData.layoutConfig || [],
+        totalPrice: appData.orderData?.total || 0,
+        imageUrl: appData.uploadedImage?.url || ''
+      });
       
       setSuccess(true);
       
