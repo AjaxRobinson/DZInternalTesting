@@ -22,6 +22,8 @@ function doPost(e) {
         return getCustomerData(data);
       case 'uploadImage':
         return uploadImageToFolder(data);
+      case 'appendOrderLog':
+        return appendOrderLog(data);
       default:
         return ContentService
           .createTextOutput(JSON.stringify({ success: false, error: 'Invalid action' }))
@@ -223,6 +225,32 @@ function uploadImageToFolder(requestData) {
       
   } catch (error) {
     console.error('Error uploading image:', error);
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * Append order log data to the spreadsheet
+ */
+function appendOrderLog(requestData) {
+  try {
+    const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getActiveSheet();
+    const rowData = requestData.rowData;
+    
+    // Append the row to the sheet
+    sheet.appendRow(rowData);
+    
+    return ContentService
+      .createTextOutput(JSON.stringify({ 
+        success: true, 
+        message: 'Order logged successfully' 
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } catch (error) {
+    console.error('Error appending order log:', error);
     return ContentService
       .createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
       .setMimeType(ContentService.MimeType.JSON);

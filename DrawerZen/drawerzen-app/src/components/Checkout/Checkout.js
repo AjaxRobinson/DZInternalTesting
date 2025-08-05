@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Box, Grid } from '@react-three/drei';
 import { GRID_SIZE } from '../LayoutDesigner/LayoutDesigner.constants';
+import GoogleDriveService from '../../services/GoogleDriveService';
 
 const CheckoutContainer = styled.div`
   max-width: 1200px;
@@ -326,14 +327,41 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
       // Submit all customer data to the server
       await dataManager.submitAllData();
       
+      // Create order log row
+      const { appData } = dataManager;
+      const row = [
+        new Date().toISOString(), // timestamp
+        dataManager.sessionId, // session ID
+        appData.customerInfo.email,
+        appData.customerInfo.firstName,
+        appData.customerInfo.lastName,
+        appData.customerInfo.phone,
+        appData.customerInfo.address,
+        appData.customerInfo.apartment || '',
+        appData.customerInfo.city,
+        appData.customerInfo.state,
+        appData.customerInfo.zipCode,
+        appData.customerInfo.country,
+        JSON.stringify(appData.drawerDimensions),
+        JSON.stringify(appData.layoutConfig),
+        appData.orderData?.total || 0,
+        appData.uploadedImage?.url || '',
+        'Submitted'
+      ];
+      
+      // Log the order to the spreadsheet
+      await GoogleDriveService.appendOrderLog(row);
+      
       setSuccess(true);
       
-      // Show success message and redirect after delay
+      // Clear all data and redirect after delay
       setTimeout(() => {
+        dataManager.clearAllData();
         navigate('/order-success');
       }, 2000);
       
     } catch (err) {
+      console.error('Error submitting order:', err);
       setError('Failed to submit order. Please try again.');
       setIsProcessing(false);
     }

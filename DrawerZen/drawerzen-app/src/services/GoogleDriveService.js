@@ -263,6 +263,35 @@ class GoogleDriveService {
     this.sessionId = this.generateSessionId();
   }
 
+  /**
+   * Append order log data to Google Sheets
+   */
+  async appendOrderLog(rowData) {
+    try {
+      const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'appendOrderLog',
+          rowData: rowData
+        })
+      });
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to append order log');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error appending order log:', error);
+      throw error;
+    }
+  }
+
   getSessionId() {
     return this.sessionId;
   }
