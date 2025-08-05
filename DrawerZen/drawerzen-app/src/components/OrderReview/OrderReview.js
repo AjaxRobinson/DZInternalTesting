@@ -303,22 +303,27 @@ const SecondaryButton = styled.button`
   }
 `;
 
-export default function OrderReview({ bins = {}, drawerDimensions, onProceedToCheckout }) {
+export default function OrderReview({ bins = {}, drawerDimensions, onProceedToCheckout, dataManager }) {
   const navigate = useNavigate();
   const [promoCode, setPromoCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [isCollapsed, setIsCollapsed] = useState(true); // Start collapsed
 
-  // Extract bins array from the layout config
-  const placedBins = bins.bins || [];
+  // Extract bins array from the layout config or from data manager
+  const placedBins = bins.bins || bins || dataManager?.appData?.layoutConfig || [];
+
+  // Use server-side data if available, otherwise fallback to props
+  const serverData = dataManager?.appData;
+  const actualDrawerDimensions = serverData?.drawerDimensions || drawerDimensions;
+  const actualPlacedBins = serverData?.layoutConfig || placedBins;
 
   // Convert dimensions to cells
-  const drawerCellsX = Math.ceil(drawerDimensions.width / GRID_SIZE);
-  const drawerCellsY = Math.ceil(drawerDimensions.length / GRID_SIZE);
+  const drawerCellsX = Math.ceil(actualDrawerDimensions.width / GRID_SIZE);
+  const drawerCellsY = Math.ceil(actualDrawerDimensions.length / GRID_SIZE);
 
   const calculateSubtotal = () => {
-    const binsTotal = placedBins.reduce((total, bin) => total + calculateBinPrice(bin), 0);
-    const baseplateTotal = calculateBaseplateCost(drawerDimensions);
+    const binsTotal = actualPlacedBins.reduce((total, bin) => total + calculateBinPrice(bin), 0);
+    const baseplateTotal = calculateBaseplateCost(actualDrawerDimensions);
     return binsTotal + baseplateTotal;
   };
 
@@ -349,13 +354,19 @@ export default function OrderReview({ bins = {}, drawerDimensions, onProceedToCh
 
   const handleCheckout = () => {
     const orderData = {
-      bins: placedBins,
-      drawerDimensions,
+      bins: actualPlacedBins,
+      drawerDimensions: actualDrawerDimensions,
       subtotal: calculateSubtotal(),
       shipping: calculateShipping(),
       discount,
-      total: calculateTotal()
+      total: calculateTotal(),
+      baseplateCost: calculateBaseplateCost(actualDrawerDimensions)
     };
+    
+    // Update data manager with order data
+    if (dataManager) {
+      dataManager.updateOrderData(orderData);
+    }
     
     onProceedToCheckout(orderData);
     navigate('/checkout');
@@ -391,10 +402,10 @@ export default function OrderReview({ bins = {}, drawerDimensions, onProceedToCh
         <DrawerInfo>
           <h3>Your Drawer</h3>
           <p className="dimensions">
-            {drawerCellsX} × {drawerCellsY} cells ({Math.round(drawerDimensions.width)}mm × {Math.round(drawerDimensions.length)}mm)
+            {drawerCellsX} × {drawerCellsY} cells ({Math.round(actualDrawerDimensions.width)}mm × {Math.round(actualDrawerDimensions.length)}mm)
           </p>
           <p className="bin-count">
-            {placedBins.length} bin{placedBins.length !== 1 ? 's' : ''} configured
+            {actualPlacedBins.length} bin{actualPlacedBins.length !== 1 ? 's' : ''} configured
           </p>
         </DrawerInfo>
         <SaveButton onClick={handleSaveDrawer}>
@@ -410,7 +421,7 @@ export default function OrderReview({ bins = {}, drawerDimensions, onProceedToCh
         
         <CollapsibleContent isCollapsed={isCollapsed}>
           <BinList>
-            {placedBins.length > 0 ? placedBins.map((bin, index) => (
+            {actualPlacedBins.length > 0 ? actualPlacedBins.map((bin, index) => (
               <BinItem key={bin.id || index}>
                 <BinPreview color={bin.color || '#4f46e5'}>
                   {index + 1}
@@ -455,10 +466,10 @@ export default function OrderReview({ bins = {}, drawerDimensions, onProceedToCh
         <TotalSection>
           <div>
             <p style={{ color: '#6b7280', marginBottom: '0.5rem' }}>
-              Bins: ${placedBins.reduce((total, bin) => total + calculateBinPrice(bin), 0).toFixed(2)}
+              Bins: ${actualPlacedBins.reduce((total, bin) => total + calculateBinPrice(bin), 0).toFixed(2)}
             </p>
             <p style={{ color: '#6b7280', marginBottom: '0.5rem' }}>
-              Baseplate: ${calculateBaseplateCost(drawerDimensions).toFixed(2)}
+              Baseplate: ${calculateBaseplateCost(actualDrawerDimensions).toFixed(2)}
             </p>
             <p style={{ color: '#6b7280', marginBottom: '0.5rem' }}>
               Subtotal: ${calculateSubtotal().toFixed(2)}
@@ -481,7 +492,7 @@ export default function OrderReview({ bins = {}, drawerDimensions, onProceedToCh
         <SecondaryButton onClick={handleBack}>
           Back to Layout
         </SecondaryButton>
-        <PrimaryButton onClick={handleCheckout} disabled={placedBins.length === 0}>
+        <PrimaryButton onClick={handleCheckout} disabled={actualPlacedBins.length === 0}>
           Proceed to Checkout
         </PrimaryButton>
       </ActionButtons>

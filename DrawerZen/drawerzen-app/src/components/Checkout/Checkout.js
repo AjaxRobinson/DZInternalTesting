@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Box, Grid } from '@react-three/drei';
-import { loadStripe } from '@stripe/stripe-js'; // Add this import
 import { GRID_SIZE } from '../LayoutDesigner/LayoutDesigner.constants';
 
 const CheckoutContainer = styled.div`
@@ -138,26 +137,6 @@ const SubmitButton = styled.button`
   }
 `;
 
-const PaymentMethods = styled.div`
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-`;
-
-const PaymentMethod = styled.button`
-  flex: 1;
-  padding: 1rem;
-  border: 2px solid ${props => props.selected ? '#4f46e5' : '#e5e7eb'};
-  background: ${props => props.selected ? '#ede9fe' : 'white'};
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  
-  &:hover {
-    border-color: #4f46e5;
-  }
-`;
-
 const ErrorMessage = styled.div`
   background: #fee;
   color: #dc2626;
@@ -260,56 +239,76 @@ function DrawerPreview({ layoutConfig, drawerDimensions }) {
   );
 }
 
-// Stripe key (replace with your actual key)
-const stripePromise = loadStripe('pk_test_your_stripe_key_here');
-
-export default function Checkout({ orderData, layoutConfig, drawerDimensions }) {
+export default function Checkout({ orderData, layoutConfig, drawerDimensions, customerInfo, dataManager }) {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    email: '',
-    firstName: '',
-    lastName: '',
-    address: '',
-    apartment: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    country: 'US',
-    phone: '',
-    cardNumber: '',
-    cardExpiry: '',
-    cardCVC: ''
-  });
-  const [paymentMethod, setPaymentMethod] = useState('card');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  // Use the final total from order data (already includes baseplate cost)
+  // Use customer info from data manager
+  const [formData, setFormData] = useState({
+    email: customerInfo?.email || '',
+    firstName: customerInfo?.firstName || '',
+    lastName: customerInfo?.lastName || '',
+    address: customerInfo?.address || '',
+    apartment: customerInfo?.apartment || '',
+    city: customerInfo?.city || '',
+    state: customerInfo?.state || '',
+    zipCode: customerInfo?.zipCode || '',
+    country: customerInfo?.country || 'US',
+    phone: customerInfo?.phone || ''
+  });
+
+  // Update form data when customer info changes
+  useEffect(() => {
+    if (customerInfo) {
+      setFormData(prev => ({
+        ...prev,
+        email: customerInfo.email || prev.email,
+        firstName: customerInfo.firstName || prev.firstName,
+        lastName: customerInfo.lastName || prev.lastName,
+        address: customerInfo.address || prev.address,
+        apartment: customerInfo.apartment || prev.apartment,
+        city: customerInfo.city || prev.city,
+        state: customerInfo.state || prev.state,
+        zipCode: customerInfo.zipCode || prev.zipCode,
+        country: customerInfo.country || prev.country,
+        phone: customerInfo.phone || prev.phone
+      }));
+    }
+  }, [customerInfo]);
+
+  // Use the final total from order data
   const finalTotal = orderData.total;
 
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData({
+    const { name, value } = e.target;
+    const updatedData = {
       ...formData,
-      [name]: type === 'checkbox' ? checked : value
-    });
+      [name]: value
+    };
+    setFormData(updatedData);
+    
+    // Update data manager with customer info changes
+    dataManager.updateCustomerInfo({ [name]: value });
   };
 
   const validateForm = () => {
     const required = ['email', 'firstName', 'lastName', 'address', 'city', 'state', 'zipCode'];
-    for (const field of required) {
-      if (!formData[field]) {
-        setError(`Please fill in ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
-        return false;
-      }
-    }
+    const missing = required.filter(field => !formData[field] || formData[field].trim() === '');
     
-    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    if (missing.length > 0) {
+      setError(`Please fill in the following required fields: ${missing.join(', ')}`);
+      return false;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
       setError('Please enter a valid email address');
       return false;
     }
-    
+
     return true;
   };
 
@@ -324,24 +323,18 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions }) 
     setIsProcessing(true);
     
     try {
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // In a real app, you would:
-      // 1. Create payment intent on your backend
-      // 2. Confirm payment with Stripe
-      // 3. Save order to database
-      // 4. Send confirmation email
+      // Submit all customer data to the server
+      await dataManager.submitAllData();
       
       setSuccess(true);
       
-      // Redirect to success page after 2 seconds
+      // Show success message and redirect after delay
       setTimeout(() => {
-        window.location.href = '/order-success';
+        navigate('/order-success');
       }, 2000);
       
     } catch (err) {
-      setError('Payment failed. Please try again.');
+      setError('Failed to submit order. Please try again.');
       setIsProcessing(false);
     }
   };
@@ -474,68 +467,8 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions }) 
               />
             </FormGroup>
 
-            <h3 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Payment Method</h3>
-            
-            <PaymentMethods>
-              <PaymentMethod
-                type="button"
-                selected={paymentMethod === 'card'}
-                onClick={() => setPaymentMethod('card')}
-              >
-                Credit Card
-              </PaymentMethod>
-              <PaymentMethod
-                type="button"
-                selected={paymentMethod === 'paypal'}
-                onClick={() => setPaymentMethod('paypal')}
-              >
-                PayPal
-              </PaymentMethod>
-            </PaymentMethods>
-
-            {paymentMethod === 'card' && (
-              <>
-                <FormGroup>
-                  <Label>Card Number</Label>
-                  <Input
-                    type="text"
-                    name="cardNumber"
-                    value={formData.cardNumber}
-                    onChange={handleInputChange}
-                    placeholder="1234 5678 9012 3456"
-                    required
-                  />
-                </FormGroup>
-                
-                <InputRow columns="1fr 1fr">
-                  <FormGroup>
-                    <Label>Expiration</Label>
-                    <Input
-                      type="text"
-                      name="cardExpiry"
-                      value={formData.cardExpiry}
-                      onChange={handleInputChange}
-                      placeholder="MM/YY"
-                      required
-                    />
-                  </FormGroup>
-                  <FormGroup>
-                    <Label>CVC</Label>
-                    <Input
-                      type="text"
-                      name="cardCVC"
-                      value={formData.cardCVC}
-                      onChange={handleInputChange}
-                      placeholder="123"
-                      required
-                    />
-                  </FormGroup>
-                </InputRow>
-              </>
-            )}
-
             <SubmitButton type="submit" disabled={isProcessing}>
-              {isProcessing ? 'Processing...' : `Place Order - $${orderData.total.toFixed(2)}`}
+              {isProcessing ? 'Submitting Order...' : 'Submit Order for Review'}
             </SubmitButton>
           </form>
         </FormSection>

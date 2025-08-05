@@ -368,7 +368,7 @@ const GridInfo = styled.div`
   }
 `;
 
-export default function DrawerSetup({ onComplete, initialDimensions }) {
+export default function DrawerSetup({ onComplete, initialDimensions, dataManager }) {
   const navigate = useNavigate();
   const [unit, setUnit] = useState('mm');
   const [dimensions, setDimensions] = useState({
@@ -376,7 +376,8 @@ export default function DrawerSetup({ onComplete, initialDimensions }) {
     length: initialDimensions?.length || '',
     height: initialDimensions?.height || ''
   });
-  const [image, setImage] = useState(null);
+  const [image, setImage] = useState(dataManager?.appData?.uploadedImage?.url || null);
+  const [uploading, setUploading] = useState(false);
 
   // Determine if container should be expanded (both image and dimensions are present)
   const isExpanded = image && dimensions.width && dimensions.length;
@@ -384,12 +385,43 @@ export default function DrawerSetup({ onComplete, initialDimensions }) {
   // Show headers only when not expanded
   const showHeaders = !isExpanded;
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => setImage(reader.result);
-      reader.readAsDataURL(file);
+      setUploading(true);
+      try {
+        // First show preview
+        const reader = new FileReader();
+        reader.onload = () => setImage(reader.result);
+        reader.readAsDataURL(file);
+
+        // Upload to Google Drive if dataManager is available
+        if (dataManager) {
+          const result = await dataManager.uploadImage(file);
+          if (result.success) {
+            setImage(result.imageUrl);
+          }
+        }
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        // Keep the preview even if upload fails
+      } finally {
+        setUploading(false);
+      }
+    }
+  };
+
+  const handleDimensionChange = (field, value) => {
+    const newDimensions = { ...dimensions, [field]: value };
+    setDimensions(newDimensions);
+    
+    // Update data manager if available and all dimensions are filled
+    if (dataManager && newDimensions.width && newDimensions.length && newDimensions.height) {
+      dataManager.updateDrawerDimensions({
+        width: parseFloat(newDimensions.width),
+        length: parseFloat(newDimensions.length),
+        height: parseFloat(newDimensions.height)
+      });
     }
   };
 
@@ -501,7 +533,7 @@ export default function DrawerSetup({ onComplete, initialDimensions }) {
             <Input
               type="number"
               value={dimensions.width}
-              onChange={(e) => setDimensions({ ...dimensions, width: e.target.value })}
+              onChange={(e) => handleDimensionChange('width', e.target.value)}
               placeholder={unit === 'mm' ? 'e.g. 400' : 'e.g. 15.7'}
               min={unit === 'mm' ? '21' : '0.83'}
               step={unit === 'mm' ? '1' : '0.1'}
@@ -513,7 +545,7 @@ export default function DrawerSetup({ onComplete, initialDimensions }) {
             <Input
               type="number"
               value={dimensions.length}
-              onChange={(e) => setDimensions({ ...dimensions, length: e.target.value })}
+              onChange={(e) => handleDimensionChange('length', e.target.value)}
               placeholder={unit === 'mm' ? 'e.g. 300' : 'e.g. 11.8'}
               min={unit === 'mm' ? '21' : '0.83'}
               step={unit === 'mm' ? '1' : '0.1'}
@@ -525,7 +557,7 @@ export default function DrawerSetup({ onComplete, initialDimensions }) {
             <Input
               type="number"
               value={dimensions.height}
-              onChange={(e) => setDimensions({ ...dimensions, height: e.target.value })}
+              onChange={(e) => handleDimensionChange('height', e.target.value)}
               placeholder={unit === 'mm' ? 'e.g. 50' : 'e.g. 2.0'}
               min="0"
               step={unit === 'mm' ? '1' : '0.1'}
@@ -535,7 +567,7 @@ export default function DrawerSetup({ onComplete, initialDimensions }) {
 
         <UploadSection>
           <UploadLabel htmlFor="image-upload">
-            <span className="desktop-text">Upload Photo</span>
+            <span className="desktop-text">{uploading ? 'Uploading...' : 'Upload Photo'}</span>
             <span className="mobile-text">Upload Photo or Take Picture</span>
           </UploadLabel>
           <HiddenFileInput

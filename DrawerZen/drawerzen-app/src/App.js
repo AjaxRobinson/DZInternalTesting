@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { DndProvider } from 'react-dnd';
@@ -10,8 +10,11 @@ import DrawerSetup from './components/DrawerSetup/DrawerSetup';
 import LayoutDesigner from './components/LayoutDesigner/LayoutDesigner';
 import OrderReview from './components/OrderReview/OrderReview';
 import Checkout from './components/Checkout/Checkout';
-// FIX: Correct the import path to point inside the ErrorBoundary folder.
-import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary.js'; 
+import OrderSuccess from './components/OrderSuccess/OrderSuccess';
+import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary.js';
+
+// Hooks
+import { useDataManagement } from './hooks/useDataManagement'; 
 
 const AppContainer = styled.div`
   min-height: 100vh;
@@ -41,10 +44,8 @@ const MainContent = styled.main`
 `;
 
 function App() {
-  // Global state management
-  const [drawerDimensions, setDrawerDimensions] = useState(null);
-  const [layoutConfig, setLayoutConfig] = useState(null);
-  const [orderData, setOrderData] = useState(null);
+  // Use centralized data management
+  const dataManager = useDataManagement();
 
   // Default available bins
   const defaultBins = [
@@ -64,12 +65,7 @@ function App() {
         <AppContainer>
           <Header />
           <AppContent 
-            drawerDimensions={drawerDimensions}
-            setDrawerDimensions={setDrawerDimensions}
-            layoutConfig={layoutConfig}
-            setLayoutConfig={setLayoutConfig}
-            orderData={orderData}
-            setOrderData={setOrderData}
+            dataManager={dataManager}
             defaultBins={defaultBins}
           />
         </AppContainer>
@@ -78,17 +74,10 @@ function App() {
   );
 }
 
-function AppContent({ 
-  drawerDimensions, 
-  setDrawerDimensions, 
-  layoutConfig, 
-  setLayoutConfig, 
-  orderData, 
-  setOrderData, 
-  defaultBins 
-}) {
+function AppContent({ dataManager, defaultBins }) {
   const location = useLocation();
   const isLayoutPage = location.pathname === '/layout';
+  const { appData, updateDrawerDimensions, updateLayoutConfig, updateOrderData } = dataManager;
 
   return (
     <MainContent className={isLayoutPage ? 'layout-page' : ''}>
@@ -98,54 +87,63 @@ function AppContent({
           <Route path="/" element={
             <DrawerSetup 
               onComplete={(dimensions) => {
-                setDrawerDimensions(dimensions);
+                updateDrawerDimensions(dimensions);
               }}
-              initialDimensions={drawerDimensions}
+              initialDimensions={appData.drawerDimensions}
+              dataManager={dataManager}
             />
           } />
 
           {/* Step 2: Layout Design */}
           <Route path="/layout" element={
-            drawerDimensions ? (
+            appData.drawerDimensions ? (
               <LayoutDesigner 
-                drawerDimensions={drawerDimensions}
+                drawerDimensions={appData.drawerDimensions}
                 availableBins={[]}
                 onLayoutComplete={(layout) => {
-                  setLayoutConfig(layout);
+                  updateLayoutConfig(layout);
                 }}
+                initialLayout={appData.layoutConfig}
+                dataManager={dataManager}
               />
             ) : (
               <Navigate to="/" />
             )
           } />
 
-          {/* Step 3: Order Review - Skip customization step */}
+          {/* Step 3: Order Review */}
           <Route path="/review" element={
-            layoutConfig ? (
+            appData.layoutConfig ? (
               <OrderReview 
-                bins={layoutConfig}
-                drawerDimensions={drawerDimensions}
+                bins={appData.layoutConfig}
+                drawerDimensions={appData.drawerDimensions}
                 onProceedToCheckout={(order) => {
-                  setOrderData(order);
+                  updateOrderData(order);
                 }}
+                dataManager={dataManager}
               />
             ) : (
               <Navigate to="/layout" />
             )
           } />
 
-          {/* Step 6: Checkout */}
+          {/* Step 4: Checkout */}
           <Route path="/checkout" element={
-            orderData ? (
+            appData.orderData ? (
               <Checkout 
-                orderData={orderData}
-                layoutConfig={layoutConfig}
-                drawerDimensions={drawerDimensions}
+                orderData={appData.orderData}
+                layoutConfig={appData.layoutConfig}
+                drawerDimensions={appData.drawerDimensions}
+                customerInfo={appData.customerInfo}
+                dataManager={dataManager}
               />
             ) : (
               <Navigate to="/review" />
             )
           } />
+
+          {/* Order Success Page */}
+          <Route path="/order-success" element={<OrderSuccess />} />
         </Routes>
       </ErrorBoundary>
     </MainContent>

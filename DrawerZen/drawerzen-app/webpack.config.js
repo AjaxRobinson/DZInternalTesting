@@ -2,13 +2,17 @@ const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 
-module.exports = {
-  entry: './src/index.js',
-  output: {
-    path: path.resolve(__dirname, 'build'),
-    filename: '[name].[contenthash].js',
-    publicPath: '/'
-  },
+module.exports = (env, argv) => {
+  const isProduction = argv.mode === 'production';
+  const publicPath = isProduction ? '/DZInternalTesting/' : '/';
+
+  return {
+    entry: './src/index.js',
+    output: {
+      path: path.resolve(__dirname, 'build'),
+      filename: '[name].[contenthash].js',
+      publicPath: publicPath
+    },
   module: {
     rules: [
       {
@@ -66,4 +70,5 @@ module.exports = {
       }
     }
   }
+  };
 };
