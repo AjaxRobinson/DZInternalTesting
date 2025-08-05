@@ -317,11 +317,6 @@ export default function OrderReview({ bins = {}, drawerDimensions, onProceedToCh
   const actualDrawerDimensions = serverData?.drawerDimensions || drawerDimensions;
   const layoutData = serverData?.layoutConfig || placedBins;
   
-  // Debug logging
-  console.log('OrderReview - layoutData:', layoutData);
-  console.log('OrderReview - serverData?.layoutConfig:', serverData?.layoutConfig);
-  console.log('OrderReview - placedBins:', placedBins);
-  
   // Ensure actualPlacedBins is always an array
   const actualPlacedBins = Array.isArray(layoutData) ? layoutData : 
                           (layoutData && Array.isArray(layoutData.bins)) ? layoutData.bins :

@@ -101,7 +101,9 @@ function AppContent({ dataManager, defaultBins }) {
                 drawerDimensions={appData.drawerDimensions}
                 availableBins={[]}
                 onLayoutComplete={(layout) => {
-                  updateLayoutConfig(layout);
+                  // layout is the object returned by LayoutDesigner
+                  // store only its bins array
+                  updateLayoutConfig(layout?.bins || layout);
                 }}
                 initialLayout={appData.layoutConfig}
                 dataManager={dataManager}
