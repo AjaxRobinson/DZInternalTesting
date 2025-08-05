@@ -37,7 +37,8 @@ const Card = styled.div`
   flex: 1; /* Allow it to grow and shrink within the container */
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Prevent content from spilling out */
+  overflow-y: auto;
+  overflow-x: hidden;
   
   @media (max-width: 768px) {
     padding: ${props => props.expanded ? '1rem' : '1.5rem'};
