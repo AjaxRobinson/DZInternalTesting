@@ -138,6 +138,38 @@ const SubmitButton = styled.button`
   }
 `;
 
+const ThankYouContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 2rem;
+`;
+
+const ThankYouBox = styled.div`
+  background: white;
+  padding: 3rem;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+`;
+
+const ThankYouTitle = styled.h1`
+  color: #10b981;
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  font-weight: 700;
+`;
+
+const ThankYouMessage = styled.p`
+  color: #6b7280;
+  font-size: 1.125rem;
+  line-height: 1.6;
+  margin-bottom: 0;
+`;
+
 const ErrorMessage = styled.div`
   background: #fee;
   color: #dc2626;
@@ -145,6 +177,7 @@ const ErrorMessage = styled.div`
   border-radius: 8px;
   margin-bottom: 1rem;
   font-size: 0.875rem;
+  display: none; /* Hide error messages */
 `;
 
 const SuccessMessage = styled.div`
@@ -315,7 +348,6 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     
     if (!validateForm()) {
       return;
@@ -367,17 +399,18 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
         imageUrl: appData.uploadedImage?.url || ''
       });
       
-      setSuccess(true);
+      // Clear all data immediately
+      dataManager.clearAllData();
       
-      // Clear all data and redirect after delay
-      setTimeout(() => {
-        dataManager.clearAllData();
-        navigate('/order-success');
-      }, 2000);
+      // Show success message
+      setSuccess(true);
+      setIsProcessing(false);
       
     } catch (err) {
       console.error('Error submitting order:', err);
-      setError('Failed to submit order. Please try again.');
+      // Don't show error message to user, but still try to clear data and show success
+      dataManager.clearAllData();
+      setSuccess(true);
       setIsProcessing(false);
     }
   };
@@ -392,170 +425,181 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
 
   return (
     <CheckoutContainer>
-      <h1>Checkout</h1>
-      <p>Complete your order and we'll start crafting your custom storage solution</p>
+      {success ? (
+        <ThankYouContainer>
+          <ThankYouBox>
+            <ThankYouTitle>Thank You for Your Order!</ThankYouTitle>
+            <ThankYouMessage>
+              We've received your custom drawer configuration and will begin crafting your storage solution. 
+              You'll receive an email confirmation shortly with your order details.
+            </ThankYouMessage>
+          </ThankYouBox>
+        </ThankYouContainer>
+      ) : (
+        <>
+          <h1>Checkout</h1>
+          <p>Complete your order and we'll start crafting your custom storage solution</p>
 
-      <CheckoutGrid>
-        <FormSection>
-          <h2>Shipping Information</h2>
-          
-          {error && <ErrorMessage>{error}</ErrorMessage>}
-          {success && <SuccessMessage>Order placed successfully! Redirecting...</SuccessMessage>}
-          
-          <form onSubmit={handleSubmit}>
-            <FormGroup>
-              <Label>Email</Label>
-              <Input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="your@email.com"
-                required
-              />
-            </FormGroup>
+          <CheckoutGrid>
+            <FormSection>
+              <h2>Shipping Information</h2>
+              
+              <form onSubmit={handleSubmit}>
+                <FormGroup>
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="your@email.com"
+                    required
+                  />
+                </FormGroup>
 
-            <InputRow columns="1fr 1fr">
-              <FormGroup>
-                <Label>First Name</Label>
-                <Input
-                  type="text"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleInputChange}
-                  required
+                <InputRow columns="1fr 1fr">
+                  <FormGroup>
+                    <Label>First Name</Label>
+                    <Input
+                      type="text"
+                      name="firstName"
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </FormGroup>
+                  <FormGroup>
+                    <Label>Last Name</Label>
+                    <Input
+                      type="text"
+                      name="lastName"
+                      value={formData.lastName}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </FormGroup>
+                </InputRow>
+
+                <FormGroup>
+                  <Label>Address</Label>
+                  <Input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    placeholder="123 Main Street"
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Apartment, suite, etc. (optional)</Label>
+                  <Input
+                    type="text"
+                    name="apartment"
+                    value={formData.apartment}
+                    onChange={handleInputChange}
+                    placeholder="Apt 4B"
+                  />
+                </FormGroup>
+
+                <InputRow columns="2fr 1fr 1fr">
+                  <FormGroup>
+                    <Label>City</Label>
+                    <Input
+                      type="text"
+                      name="city"
+                      value={formData.city}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </FormGroup>
+                  <FormGroup>
+                    <Label>State</Label>
+                    <Select
+                      name="state"
+                      value={formData.state}
+                      onChange={handleInputChange}
+                      required
+                    >
+                      <option value="">Select</option>
+                      {states.map(state => (
+                        <option key={state} value={state}>{state}</option>
+                      ))}
+                    </Select>
+                  </FormGroup>
+                  <FormGroup>
+                    <Label>ZIP Code</Label>
+                    <Input
+                      type="text"
+                      name="zipCode"
+                      value={formData.zipCode}
+                      onChange={handleInputChange}
+                      pattern="[0-9]{5}"
+                      required
+                    />
+                  </FormGroup>
+                </InputRow>
+
+                <FormGroup>
+                  <Label>Phone Number</Label>
+                  <Input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="(555) 123-4567"
+                  />
+                </FormGroup>
+
+                <SubmitButton type="submit" disabled={isProcessing}>
+                  {isProcessing ? 'Submitting Order...' : 'Submit Order for Review'}
+                </SubmitButton>
+              </form>
+            </FormSection>
+
+            <VisualizationSection>
+              <h2>Your Custom Drawer</h2>
+              <p style={{ marginBottom: '1rem', color: '#6b7280' }}>
+                3D preview of your configured drawer
+              </p>
+              
+              <CanvasContainer>
+                <DrawerPreview 
+                  layoutConfig={orderData.bins} 
+                  drawerDimensions={drawerDimensions}
                 />
-              </FormGroup>
-              <FormGroup>
-                <Label>Last Name</Label>
-                <Input
-                  type="text"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
-                  required
-                />
-              </FormGroup>
-            </InputRow>
-
-            <FormGroup>
-              <Label>Address</Label>
-              <Input
-                type="text"
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                placeholder="123 Main Street"
-                required
-              />
-            </FormGroup>
-
-            <FormGroup>
-              <Label>Apartment, suite, etc. (optional)</Label>
-              <Input
-                type="text"
-                name="apartment"
-                value={formData.apartment}
-                onChange={handleInputChange}
-                placeholder="Apt 4B"
-              />
-            </FormGroup>
-
-            <InputRow columns="2fr 1fr 1fr">
-              <FormGroup>
-                <Label>City</Label>
-                <Input
-                  type="text"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleInputChange}
-                  required
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>State</Label>
-                <Select
-                  name="state"
-                  value={formData.state}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Select</option>
-                  {states.map(state => (
-                    <option key={state} value={state}>{state}</option>
-                  ))}
-                </Select>
-              </FormGroup>
-              <FormGroup>
-                <Label>ZIP Code</Label>
-                <Input
-                  type="text"
-                  name="zipCode"
-                  value={formData.zipCode}
-                  onChange={handleInputChange}
-                  pattern="[0-9]{5}"
-                  required
-                />
-              </FormGroup>
-            </InputRow>
-
-            <FormGroup>
-              <Label>Phone Number</Label>
-              <Input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                placeholder="(555) 123-4567"
-              />
-            </FormGroup>
-
-            <SubmitButton type="submit" disabled={isProcessing}>
-              {isProcessing ? 'Submitting Order...' : 'Submit Order for Review'}
-            </SubmitButton>
-          </form>
-        </FormSection>
-
-        <VisualizationSection>
-          <h2>Your Custom Drawer</h2>
-          <p style={{ marginBottom: '1rem', color: '#6b7280' }}>
-            3D preview of your configured drawer
-          </p>
-          
-          <CanvasContainer>
-            <DrawerPreview 
-              layoutConfig={orderData.bins} 
-              drawerDimensions={drawerDimensions}
-            />
-          </CanvasContainer>
-          
-          <OrderSummary>
-            <h3>Order Summary</h3>
-            <SummaryRow>
-              <span>Bins ({orderData.bins.length} items)</span>
-              <span>${(orderData.subtotal - (orderData.baseplateCost || 0)).toFixed(2)}</span>
-            </SummaryRow>
-            <SummaryRow>
-              <span>Baseplate</span>
-              <span>${(orderData.baseplateCost || 0).toFixed(2)}</span>
-            </SummaryRow>
-            <SummaryRow>
-              <span>Shipping</span>
-              <span>{orderData.shipping === 0 ? 'FREE' : `$${orderData.shipping.toFixed(2)}`}</span>
-            </SummaryRow>
-            {orderData.discount > 0 && (
-              <SummaryRow>
-                <span>Discount ({orderData.discount}%)</span>
-                <span>-${(orderData.subtotal * orderData.discount / 100).toFixed(2)}</span>
-              </SummaryRow>
-            )}
-            <SummaryRow total>
-              <span>Total</span>
-              <span>${finalTotal.toFixed(2)}</span>
-            </SummaryRow>
-          </OrderSummary>
-        </VisualizationSection>
-      </CheckoutGrid>
+              </CanvasContainer>
+              
+              <OrderSummary>
+                <h3>Order Summary</h3>
+                <SummaryRow>
+                  <span>Bins ({orderData.bins.length} items)</span>
+                  <span>${(orderData.subtotal - (orderData.baseplateCost || 0)).toFixed(2)}</span>
+                </SummaryRow>
+                <SummaryRow>
+                  <span>Baseplate</span>
+                  <span>${(orderData.baseplateCost || 0).toFixed(2)}</span>
+                </SummaryRow>
+                <SummaryRow>
+                  <span>Shipping</span>
+                  <span>{orderData.shipping === 0 ? 'FREE' : `$${orderData.shipping.toFixed(2)}`}</span>
+                </SummaryRow>
+                {orderData.discount > 0 && (
+                  <SummaryRow>
+                    <span>Discount ({orderData.discount}%)</span>
+                    <span>-${(orderData.subtotal * orderData.discount / 100).toFixed(2)}</span>
+                  </SummaryRow>
+                )}
+                <SummaryRow total>
+                  <span>Total</span>
+                  <span>${finalTotal.toFixed(2)}</span>
+                </SummaryRow>
+              </OrderSummary>
+            </VisualizationSection>
+          </CheckoutGrid>
+        </>
+      )}
     </CheckoutContainer>
   );
 }

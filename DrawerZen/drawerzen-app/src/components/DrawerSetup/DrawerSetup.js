@@ -380,6 +380,24 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
   const [image, setImage] = useState(dataManager?.appData?.uploadedImage?.url || null);
   const [uploading, setUploading] = useState(false);
 
+  // Clear image state when dataManager clears data
+  useEffect(() => {
+    if (!dataManager?.appData?.uploadedImage?.url) {
+      setImage(null);
+    }
+  }, [dataManager?.appData?.uploadedImage?.url]);
+
+  // Clear dimensions when dataManager clears data
+  useEffect(() => {
+    if (!dataManager?.appData?.drawerDimensions) {
+      setDimensions({
+        width: '',
+        length: '',
+        height: ''
+      });
+    }
+  }, [dataManager?.appData?.drawerDimensions]);
+
   // Determine if container should be expanded (both image and dimensions are present)
   const isExpanded = image && dimensions.width && dimensions.length;
   
