@@ -10,7 +10,7 @@
  */
 
 // Configuration
-const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyYMt7qGveAZtMDITn5WSOAzXGq_GOoXDAdqzwbIsqkeEWRpiuHXhii_e7PWewordqY/exec';
+const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxYVDzkUipHhh0ZivPiAnuP_rxI5D_vJwFa55TiQgw_bb2EQkgT3YbYXMy8FOVdethx/exec';
 const SPREADSHEET_ID = '1ijH_CALFSduEmzpiRfXUANvcg4uYX_kMnWoSIQ6YuoE';
 const IMAGES_FOLDER_ID = '1hjb0LiweW7LqWA-F20KuBvv0UdIprZnF';
 
