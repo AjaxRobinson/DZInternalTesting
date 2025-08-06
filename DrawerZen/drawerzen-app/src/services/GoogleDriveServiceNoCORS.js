@@ -77,15 +77,39 @@ class GoogleDriveServiceNoCORS {
   /**
    * Upload image to Google Drive
    */
-  async uploadImage(imageData, fileName) {
-    const payload = {
-      action: 'uploadImage',
-      imageData: imageData,
-      fileName: fileName,
-      mimeType: 'image/png'
-    };
+  async uploadImage(imageFile) {
+    try {
+      // Convert file to base64
+      const base64Data = await this.fileToBase64(imageFile);
+      
+      const payload = {
+        action: 'uploadImage',
+        imageData: base64Data,
+        fileName: `${this.sessionId}_${imageFile.name}`,
+        mimeType: imageFile.type
+      };
 
-    return await this.makeRequest(payload);
+      const result = await this.makeRequest(payload);
+      return result;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Convert file to base64
+   */
+  fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64 = reader.result.split(',')[1]; // Remove data:image/...;base64, prefix
+        resolve(base64);
+      };
+      reader.onerror = error => reject(error);
+    });
   }
 
   /**
