@@ -70,20 +70,9 @@ function doPost(e) {
   try {
     let data;
     
-    // Handle both JSON and form data
+    // Handle text/plain content type (no CORS preflight)
     if (e.postData && e.postData.contents) {
-      // Try to parse as JSON first
-      try {
-        data = JSON.parse(e.postData.contents);
-      } catch (jsonError) {
-        // If JSON parsing fails, try to get from form data
-        const formDataString = e.postData.getDataAsString();
-        const params = new URLSearchParams(formDataString);
-        data = JSON.parse(params.get('data') || '{}');
-      }
-    } else if (e.parameter && e.parameter.data) {
-      // Handle form parameter
-      data = JSON.parse(e.parameter.data);
+      data = JSON.parse(e.postData.contents);
     } else {
       throw new Error('No data provided');
     }
@@ -111,19 +100,13 @@ function doPost(e) {
     
     return ContentService
       .createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader('Access-Control-Allow-Origin', '*')
-      .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
-      .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      .setMimeType(ContentService.MimeType.JSON);
       
   } catch (error) {
     console.error('Error in doPost:', error);
     return ContentService
       .createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader('Access-Control-Allow-Origin', '*')
-      .setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
-      .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
