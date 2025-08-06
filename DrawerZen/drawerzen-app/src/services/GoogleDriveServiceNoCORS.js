@@ -79,8 +79,11 @@ class GoogleDriveServiceNoCORS {
    */
   async uploadImage(imageFile) {
     try {
+      console.log('Starting image upload for file:', imageFile.name, 'Size:', imageFile.size, 'Type:', imageFile.type);
+      
       // Convert file to base64
       const base64Data = await this.fileToBase64(imageFile);
+      console.log('Base64 conversion complete, length:', base64Data.length);
       
       const payload = {
         action: 'uploadImage',
@@ -89,7 +92,15 @@ class GoogleDriveServiceNoCORS {
         mimeType: imageFile.type
       };
 
+      console.log('Sending upload request with payload:', {
+        action: payload.action,
+        fileName: payload.fileName,
+        mimeType: payload.mimeType,
+        dataLength: payload.imageData.length
+      });
+
       const result = await this.makeRequest(payload);
+      console.log('Upload result:', result);
       return result;
     } catch (error) {
       console.error('Error uploading image:', error);
