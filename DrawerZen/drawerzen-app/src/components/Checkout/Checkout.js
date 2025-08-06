@@ -4,7 +4,6 @@ import styled from 'styled-components';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Box, Grid } from '@react-three/drei';
 import { GRID_SIZE } from '../LayoutDesigner/LayoutDesigner.constants';
-import GoogleDriveService from '../../services/GoogleDriveServiceNoCORS';
 
 const CheckoutContainer = styled.div`
   max-width: 1200px;
@@ -356,61 +355,76 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
     setIsProcessing(true);
     
     try {
-      // Submit all customer data to the server
-      await dataManager.submitAllData();
+      // First, ensure all form data is synced to dataManager
+      dataManager.updateCustomerInfo(formData);
       
-      // Create order log row
+      // Get the current app data after updating
       const { appData } = dataManager;
-      const row = [
-        new Date().toISOString(), // timestamp
-        dataManager.sessionId, // session ID
-        appData.customerInfo.email,
-        appData.customerInfo.firstName,
-        appData.customerInfo.lastName,
-        appData.customerInfo.phone,
-        appData.customerInfo.address,
-        appData.customerInfo.apartment || '',
-        appData.customerInfo.city,
-        appData.customerInfo.state,
-        appData.customerInfo.zipCode,
-        appData.customerInfo.country,
-        JSON.stringify(appData.drawerDimensions),
-        JSON.stringify(appData.layoutConfig),
-        appData.orderData?.total || 0,
-        appData.uploadedImage?.url || '',
-        'Submitted'
-      ];
       
-      // Log the order to the spreadsheet
-      await GoogleDriveService.appendOrderLog({
-        email: formData.email,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phone: formData.phone,
-        address: formData.address,
-        apartment: formData.apartment,
-        city: formData.city,
-        state: formData.state,
-        zipCode: formData.zipCode,
-        country: formData.country,
+      console.log('Submitting order with data:', {
+        customerInfo: formData,
         drawerDimensions: appData.drawerDimensions,
-        bins: appData.layoutConfig || [],
-        totalPrice: appData.orderData?.total || 0,
-        imageUrl: appData.uploadedImage?.url || ''
+        layoutConfig: appData.layoutConfig,
+        orderData: appData.orderData,
+        imageUrl: appData.uploadedImage?.url
       });
       
-      // Clear all data immediately
-      dataManager.clearAllData();
+      // Prepare data for Google Sheets
+      const orderData = {
+        action: 'appendOrderLog',
+        rowData: [
+          new Date().toISOString(), // timestamp
+          dataManager.sessionId || 'session_' + Date.now(), // session ID
+          formData.email,
+          formData.firstName,
+          formData.lastName,
+          formData.phone || '',
+          formData.address,
+          formData.apartment || '',
+          formData.city,
+          formData.state,
+          formData.zipCode,
+          formData.country,
+          appData.drawerDimensions?.width || '',
+          appData.drawerDimensions?.length || '',
+          appData.drawerDimensions?.height || '',
+          appData.layoutConfig?.length || 0,
+          appData.orderData?.total || 0,
+          JSON.stringify(appData.layoutConfig || []),
+          appData.uploadedImage?.url || '',
+          'Submitted'
+        ]
+      };
       
-      // Show success message
-      setSuccess(true);
-      setIsProcessing(false);
+      console.log('Sending data to Google Apps Script:', orderData);
+      
+      // Make direct request to Google Apps Script
+      const response = await fetch('https://script.google.com/macros/s/AKfycbxYVDzkUipHhh0ZivPiAnuP_rxI5D_vJwFa55TiQgw_bb2EQkgT3YbYXMy8FOVdethx/exec', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+        body: JSON.stringify(orderData)
+      });
+      
+      console.log('Response status:', response.status);
+      const result = await response.json();
+      console.log('Response result:', result);
+      
+      if (result.success) {
+        // Clear all data only on successful submission
+        dataManager.clearAllData();
+        
+        // Show success message
+        setSuccess(true);
+        setIsProcessing(false);
+      } else {
+        throw new Error(result.error || 'Failed to submit order');
+      }
       
     } catch (err) {
       console.error('Error submitting order:', err);
-      // Don't show error message to user, but still try to clear data and show success
-      dataManager.clearAllData();
-      setSuccess(true);
+      setError('There was an error submitting your order. Please try again.');
       setIsProcessing(false);
     }
   };
