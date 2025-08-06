@@ -399,7 +399,7 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
       console.log('Sending data to Google Apps Script:', orderData);
       
       // Make direct request to Google Apps Script
-      const response = await fetch('https://script.google.com/macros/s/AKfycbxYVDzkUipHhh0ZivPiAnuP_rxI5D_vJwFa55TiQgw_bb2EQkgT3YbYXMy8FOVdethx/exec', {
+      const response = await fetch('https://script.google.com/macros/s/AKfycbw-skmmpZkU3Pz988vPjNd7s5bX0O-1Bb5KBmmeGuMOfEGCRm_WF-Fh0lx8Ts6ioEpB/exec', {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain',
