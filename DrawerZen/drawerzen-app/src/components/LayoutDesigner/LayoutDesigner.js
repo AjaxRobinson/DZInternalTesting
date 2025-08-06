@@ -37,7 +37,7 @@ import BinGrid from './components/BinGrid';
 import DraggableBin from './DraggableBin';
 import BinModificationPanel from './BinModificationPanel';
 
-export default function LayoutDesigner({ drawerDimensions, availableBins = [], onLayoutComplete }) {
+export default function LayoutDesigner({ drawerDimensions, availableBins = [], onLayoutComplete, initialLayout }) {
   const navigate = useNavigate();
   
   // Window size state for responsive grid
@@ -65,6 +65,27 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
       setDrawerDimensions(drawerDimensions);
     }
   }, [drawerDimensions, setDrawerDimensions]);
+
+  // Restore bins from initialLayout when available
+  useEffect(() => {
+    if (initialLayout && Array.isArray(initialLayout) && initialLayout.length > 0) {
+      // Convert initialLayout bins to placedBins format with positions
+      const restoredBins = initialLayout.map(item => ({
+        id: item.id || uuidv4(), // Ensure each bin has an ID
+        originalId: item.originalId || item.id,
+        x: item.x || 0, // Position in millimeters
+        y: item.y || 0, // Position in millimeters
+        width: item.width,
+        length: item.length,
+        height: item.height || 21,
+        shadowBoard: item.shadowBoard || false,
+        name: item.name || `Bin ${item.id}`,
+        color: item.color || colors[0]
+      }));
+      
+      setPlacedBins(restoredBins);
+    }
+  }, [initialLayout, setPlacedBins]);
 
   // Bin management hook
   const {
