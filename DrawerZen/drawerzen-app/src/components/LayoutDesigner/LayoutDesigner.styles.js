@@ -227,7 +227,7 @@ export const Grid = styled.div`
   grid-template-columns: repeat(${props => props.cols}, ${props => props.cellSize}px);
   grid-template-rows: repeat(${props => props.rows}, ${props => props.cellSize}px);
   gap: 0px;
-  background: #e2e8f0;
+  background: rgba(226, 232, 240, 0.1); /* Make background more transparent */
   padding: 0px;
   position: absolute;
   top: 0;
@@ -235,8 +235,8 @@ export const Grid = styled.div`
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border-top: 1px solid #e2e8f0;
-  border-left: 1px solid #e2e8f0;
+  border-top: 1px solid rgba(226, 232, 240, 0.3);
+  border-left: 1px solid rgba(226, 232, 240, 0.3);
   box-sizing: border-box;
   
   canvas {
@@ -247,7 +247,7 @@ export const Grid = styled.div`
 `;
 
 export const GridCell = styled.div`
-  background: #f8fafc;
+  background: rgba(248, 250, 252, 0.1); /* Make background more transparent */
   width: ${props => props.cellSize}px;
   height: ${props => props.cellSize}px;
   position: relative;
@@ -255,15 +255,15 @@ export const GridCell = styled.div`
   box-sizing: border-box;
   
   /* Create borders without overlapping - only right and bottom borders */
-  border-right: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid rgba(226, 232, 240, 0.3);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.3);
   
   /* Emphasis borders every 42mm (every 2 cells) */
-  border-top: ${props => props.hasTopEmphasis ? '2px solid #94a3b8' : 'none'};
-  border-left: ${props => props.hasLeftEmphasis ? '2px solid #94a3b8' : 'none'};
+  border-top: ${props => props.hasTopEmphasis ? '2px solid rgba(148, 163, 184, 0.7)' : 'none'};
+  border-left: ${props => props.hasLeftEmphasis ? '2px solid rgba(148, 163, 184, 0.7)' : 'none'};
   
   &:hover {
-    background: #f1f5f9;
+    background: rgba(241, 245, 249, 0.2);
   }
 `;
 

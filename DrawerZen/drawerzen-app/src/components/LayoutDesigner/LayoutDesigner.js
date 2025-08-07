@@ -37,7 +37,7 @@ import BinGrid from './components/BinGrid';
 import DraggableBin from './DraggableBin';
 import BinModificationPanel from './BinModificationPanel';
 
-export default function LayoutDesigner({ drawerDimensions, availableBins = [], onLayoutComplete, initialLayout }) {
+export default function LayoutDesigner({ drawerDimensions, availableBins = [], onLayoutComplete, initialLayout, underlayImage }) {
   const navigate = useNavigate();
   
   // Window size state for responsive grid
@@ -497,11 +497,16 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
         width: window.innerWidth,
         height: window.innerHeight
       });
+      
+      // Re-apply orientation when viewport orientation changes
+      if (drawerDimensions) {
+        setDrawerDimensions(drawerDimensions);
+      }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [drawerDimensions, setDrawerDimensions]);
 
   return (
     <DesignerContainer>
@@ -557,6 +562,7 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
+                    underlayImage={underlayImage}
                   />
                 </GridBoundingBox>
               </GridWrapper>

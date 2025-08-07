@@ -107,6 +107,7 @@ function AppContent({ dataManager, defaultBins }) {
                 }}
                 initialLayout={appData.layoutConfig}
                 dataManager={dataManager}
+                underlayImage={appData.uploadedImage?.url}
               />
             ) : (
               <Navigate to="/" />

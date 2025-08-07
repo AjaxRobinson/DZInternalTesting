@@ -27,7 +27,7 @@ export const useDataManagement = () => {
     drawerDimensions: null,
     layoutConfig: null,
     orderData: null,
-    uploadedImage: null
+    uploadedImage: null // { url, fileId, fileName, crop, zoom, croppedAreaPixels, originalUrl }
   });
 
   // Initialize data on component mount
@@ -207,6 +207,23 @@ export const useDataManagement = () => {
   }, [hasSubmitted]);
 
   /**
+   * Update uploaded image with crop parameters or new URL
+   */
+  const updateUploadedImage = useCallback((imageData) => {
+    setAppData(prev => {
+      const newData = {
+        ...prev,
+        uploadedImage: {
+          ...prev.uploadedImage,
+          ...imageData
+        }
+      };
+      GoogleDriveService.saveSessionToLocal(newData);
+      return newData;
+    });
+  }, []);
+
+  /**
    * Submit all data to server for the first time
    */
   const submitAllData = useCallback(async () => {
@@ -358,6 +375,7 @@ export const useDataManagement = () => {
     updateLayoutConfig,
     updateOrderData,
     uploadImage,
+    updateUploadedImage,
     submitAllData,
     clearAllData,
     

@@ -27,7 +27,8 @@ const BinGrid = forwardRef(({
   drawingPreview,
   onMouseDown,
   onMouseMove,
-  onMouseUp
+  onMouseUp,
+  underlayImage
 }, ref) => {
   return (
     <Grid 
@@ -40,6 +41,12 @@ const BinGrid = forwardRef(({
         if (ref) ref(el);
       }}
       data-grid="true"
+      style={{
+        backgroundImage: underlayImage ? `url(${underlayImage})` : 'none',
+        backgroundSize: 'contain',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
+      }}
     >
       {/* Render 21mm grid cells with visual emphasis lines every 42mm */}
       {Array.from({ length: gridRows * gridCols }, (_, index) => {

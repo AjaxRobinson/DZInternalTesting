@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
+import GridOverlay from '../GridOverlay/GridOverlay';
+import FreeTransform from './FreeTransform';
 
 const SetupContainer = styled.div`
   width: 100%;
@@ -322,7 +324,7 @@ const DrawerImage = styled.img`
   display: block;
 `;
 
-const GridOverlay = styled.div`
+const GridOverlayOld = styled.div`
   position: absolute;
   top: 0;
   left: 0;
@@ -333,6 +335,93 @@ const GridOverlay = styled.div`
     linear-gradient(to right, rgba(79, 70, 229, 0.3) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(79, 70, 229, 0.3) 1px, transparent 1px);
   background-size: ${props => props.cellSize}px ${props => props.cellSize}px;
+`;
+
+const CropContainer = styled.div`
+  position: relative;
+  width: 100%;
+  height: ${props => props.expanded ? '45vh' : '400px'};
+  max-width: 100%;
+  border: 2px solid #4f46e5;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: height 0.6s ease-in-out;
+`;
+
+const CropControls = styled.div`
+  margin-top: 1rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+`;
+
+const CropButton = styled.button`
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &.primary {
+    background: #4f46e5;
+    color: white;
+    
+    &:hover {
+      background: #4338ca;
+    }
+  }
+  
+  &.secondary {
+    background: #f3f4f6;
+    color: #374151;
+    
+    &:hover {
+      background: #e5e7eb;
+    }
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const ImagePreview = styled.div`
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  max-height: ${props => props.expanded ? '45vh' : '300px'};
+  border: 2px solid #4f46e5;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: max-height 0.6s ease-in-out;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+`;
+
+const RecropButton = styled.button`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(79, 70, 229, 0.9);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  
+  &:hover {
+    background: rgba(67, 56, 202, 0.9);
+  }
 `;
 
 const GridInfo = styled.div`
@@ -379,11 +468,40 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
   });
   const [image, setImage] = useState(dataManager?.appData?.uploadedImage?.url || null);
   const [uploading, setUploading] = useState(false);
+  
+  // Transform-related state
+  // Store transform (corner positions)
+  const [transform, setTransform] = useState(dataManager?.appData?.uploadedImage?.transform || null);
+  // Store exported/cropped underlay image
+  const [underlayImage, setUnderlayImage] = useState(null);
+  // Store rotated image
+  const [rotatedImage, setRotatedImage] = useState(null);
+  
+  // Window resize handler to update orientation
+  useEffect(() => {
+    const handleResize = () => {
+      // Trigger re-calculation when viewport orientation changes
+      setDimensions(prev => ({ ...prev }));
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Debug logging
+  console.log('DrawerSetup render - image state:', {
+    image: !!image,
+    imageLength: image?.length,
+    dimensions: dimensions,
+    uploading,
+    transform: !!transform
+  });
 
   // Clear image state when dataManager clears data
   useEffect(() => {
     if (!dataManager?.appData?.uploadedImage?.url) {
       setImage(null);
+      setTransform(null);
     }
   }, [dataManager?.appData?.uploadedImage?.url]);
 
@@ -404,29 +522,59 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
   // Show headers only when not expanded
   const showHeaders = !isExpanded;
 
-  const handleImageUpload = async (e) => {
+  const handleImageUpload = (e) => {
     const file = e.target.files[0];
+    setRotatedImage(null); // Reset any previous rotation
     if (file) {
+      console.log('File selected:', file.name);
       setUploading(true);
-      try {
-        // First show preview
-        const reader = new FileReader();
-        reader.onload = () => setImage(reader.result);
-        reader.readAsDataURL(file);
-
-        // Upload to Google Drive if dataManager is available
-        if (dataManager) {
-          const result = await dataManager.uploadImage(file);
-          if (result.success) {
-            setImage(result.imageUrl);
-          }
-        }
-      } catch (error) {
-        console.error('Error uploading image:', error);
-        // Keep the preview even if upload fails
-      } finally {
+      
+      // Create preview URL for immediate display
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const imageUrl = event.target.result;
+        console.log('Setting image URL:', imageUrl ? 'Success' : 'Failed');
+        
+        setImage(imageUrl);
+        setTransform(null);
+        
         setUploading(false);
-      }
+        
+        // Store in data manager
+        if (dataManager) {
+          dataManager.updateUploadedImage({
+            url: imageUrl
+          });
+        }
+      };
+      
+      reader.onerror = () => {
+        console.error('FileReader error');
+        setUploading(false);
+      };
+      
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Save transform to dataManager
+  const handleTransformChange = (newTransform) => {
+    setTransform(newTransform);
+    if (dataManager) {
+      dataManager.updateUploadedImage({
+        url: image,
+        transform: newTransform
+      });
+    }
+  };
+  // Callback to receive the cropped/distorted image from FreeTransform
+  const handleExportImage = (dataURL) => {
+    setUnderlayImage(dataURL);
+    if (dataManager) {
+      dataManager.updateUploadedImage({
+        ...dataManager.appData.uploadedImage,
+        underlay: dataURL
+      });
     }
   };
 
@@ -444,22 +592,21 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     let dimensionsInMM;
-    
     if (unit === 'inches') {
       dimensionsInMM = {
         width: parseFloat(dimensions.width) * 25.4,
         length: parseFloat(dimensions.length) * 25.4,
         height: parseFloat(dimensions.height) * 25.4,
-        unit: 'mm'
+        unit: 'mm',
       };
     } else {
       dimensionsInMM = {
         width: parseFloat(dimensions.width),
         length: parseFloat(dimensions.length),
         height: parseFloat(dimensions.height),
-        unit: 'mm'
+        unit: 'mm',
       };
     }
 
@@ -472,31 +619,100 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
       return;
     }
 
-    onComplete({ ...dimensionsInMM, image });
+    // Upload the final image to Google Drive if we have a file and haven't uploaded yet
+    if (dataManager && dataManager.appData.uploadedImage?.file && !dataManager.appData.uploadedImage?.fileId) {
+      setUploading(true);
+      try {
+        const result = await dataManager.uploadImage(dataManager.appData.uploadedImage.file);
+        if (result.success) {
+          // Update with the uploaded URL
+          dataManager.updateUploadedImage({
+            ...dataManager.appData.uploadedImage,
+            url: result.imageUrl,
+            fileId: result.fileId,
+            file: undefined // Remove the file blob after successful upload
+          });
+          setRotatedImage(null); // Reset any previous rotation
+        }
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        // Continue anyway with local image
+      } finally {
+        setUploading(false);
+      }
+    }
+
+    // Only use the cropped/distorted image as underlay on layout page
+    onComplete({ ...dimensionsInMM, image, transform, underlay: underlayImage });
     navigate('/layout');
+  };
+
+  // Rotate image 90 degrees clockwise
+  const handleRotateImage = () => {
+    const src = rotatedImage || image;
+    if (!src) return;
+    const img = new window.Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.height;
+      canvas.height = img.width;
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+      ctx.restore();
+      const rotatedDataUrl = canvas.toDataURL();
+      setRotatedImage(rotatedDataUrl);
+      setImage(rotatedDataUrl);
+      if (dataManager) {
+        dataManager.updateUploadedImage({
+          url: rotatedDataUrl
+        });
+      }
+    };
+    img.src = src;
   };
 
   const isValid = dimensions.width && dimensions.length && dimensions.height && image;
 
-  // Calculate grid dimensions and preview settings
+  // Only allow submit if the cropped/distorted image is available
+  const canSubmit = isValid && !!underlayImage && !uploading;
+  // Calculate grid dimensions and preview settings with viewport-aware orientation
   const getDrawerDimensionsInMM = () => {
     if (!dimensions.width || !dimensions.length) return { width: 0, length: 0 };
     
+    let width, length;
     if (unit === 'inches') {
+      width = parseFloat(dimensions.width) * 25.4;
+      length = parseFloat(dimensions.length) * 25.4;
+    } else {
+      width = parseFloat(dimensions.width);
+      length = parseFloat(dimensions.length);
+    }
+    
+    // Determine viewport orientation
+    const isViewportLandscape = window.innerWidth > window.innerHeight;
+    
+    // Arrange dimensions based on viewport orientation
+    if (isViewportLandscape) {
+      // Landscape viewport: put larger dimension on X-axis (width)
       return {
-        width: parseFloat(dimensions.width) * 25.4,
-        length: parseFloat(dimensions.length) * 25.4
+        width: Math.max(width, length),
+        length: Math.min(width, length)
+      };
+    } else {
+      // Portrait viewport: put larger dimension on Y-axis (length)
+      return {
+        width: Math.min(width, length),
+        length: Math.max(width, length)
       };
     }
-    return {
-      width: parseFloat(dimensions.width),
-      length: parseFloat(dimensions.length)
-    };
   };
 
   const drawerMM = getDrawerDimensionsInMM();
-  const gridCols = Math.floor(drawerMM.width / 21);
-  const gridRows = Math.floor(drawerMM.length / 21);
+  const gridCols = drawerMM.width > 0 ? Math.floor(drawerMM.width / 21) : 0;
+  const gridRows = drawerMM.length > 0 ? Math.floor(drawerMM.length / 21) : 0;
   
   // Calculate cell size for display - considering both width and height constraints
   const maxDisplayWidth = isExpanded ? Math.min(600, window.innerWidth * 0.75) : 400;
@@ -598,46 +814,62 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
           />
         </UploadSection>
 
-        {image && dimensions.width && dimensions.length && (
-          <GridOverlayContainer expanded={isExpanded}>
-            <ImageWithGrid expanded={isExpanded}>
-              <DrawerImage 
-                src={image} 
-                alt="Drawer"
-                style={{
-                  width: displayWidth,
-                  height: displayHeight
-                }}
-              />
-              <GridOverlay 
-                cellSize={cellSizeX}
-                style={{
-                  backgroundSize: `${cellSizeX}px ${cellSizeY}px`
-                }}
-              />
-            </ImageWithGrid>
-            <GridInfo expanded={isExpanded}>
-              <div>Grid overlay shows 42mm cells. Bins can be placed with 21mm precision.</div>
-              <div className="grid-stats">
-                <div className="stat">
-                  <div className="stat-value">{gridCols} × {gridRows}</div>
-                  <div className="stat-label">42mm Grid Cells</div>
-                </div>
-                <div className="stat">
-                  <div className="stat-value">{(drawerMM.width / 1000).toFixed(2)}m × {(drawerMM.length / 1000).toFixed(2)}m</div>
-                  <div className="stat-label">Actual Size</div>
-                </div>
-                <div className="stat">
-                  <div className="stat-value">{(drawerMM.width * drawerMM.length / 1000000).toFixed(3)}m²</div>
-                  <div className="stat-label">Area</div>
-                </div>
-              </div>
-            </GridInfo>
-          </GridOverlayContainer>
+        {/* Simple image preview for debugging when dimensions not set */}
+        {image && !dimensions.width && (
+          <div style={{padding: '1rem', border: '1px solid #ccc', margin: '1rem 0', textAlign: 'center'}}>
+            <p>Image uploaded but dimensions not set:</p>
+            <img src={image} alt="Uploaded" style={{maxWidth: '200px', maxHeight: '200px'}} />
+            <p style={{fontSize: '0.9rem', color: '#666'}}>Set drawer dimensions above to enable transform tools</p>
+          </div>
         )}
 
-        <SubmitButton expanded={isExpanded} onClick={handleSubmit} disabled={!isValid}>
-          Continue to Layout
+        {/* Free Transform Tool Interface */}
+        {image && dimensions.width && dimensions.length && (
+          <div style={{width: '100%', maxWidth: '900px', margin: '1rem auto'}}>
+            <div style={{marginBottom: '1rem', textAlign: 'center'}}>
+              <h3>Position Your Drawer Image</h3>
+              <p style={{color: '#666', fontSize: '0.9rem', margin: '0.5rem 0'}}>
+                Drag the blue corners to distort your image. The red border shows the final crop area.
+              </p>
+              <button type="button" style={{margin: '0.5rem 0', padding: '0.5rem 1rem', borderRadius: '6px', border: 'none', background: '#4f46e5', color: 'white', fontWeight: 500, cursor: 'pointer'}} onClick={handleRotateImage}>
+                Rotate Image 90°
+              </button>
+            </div>
+            <FreeTransform
+              image={image}
+              containerWidth={700}
+              containerHeight={Math.round(700 * (drawerMM.length / drawerMM.width))}
+              onTransformChange={handleTransformChange}
+              gridCols={gridCols}
+              gridRows={gridRows}
+              onExportImage={handleExportImage}
+            />
+            {/* Grid info */}
+            <div style={{padding: '1rem', background: '#f9f9f9', fontSize: '0.9rem', marginTop: '1rem', borderRadius: '8px'}}>
+              <div style={{fontWeight: 'bold', marginBottom: '0.5rem'}}>Drawer Specifications:</div>
+              <div style={{display: 'flex', gap: '2rem', flexWrap: 'wrap'}}>
+                <div>
+                  <strong>{gridCols} × {gridRows}</strong>
+                  <div style={{fontSize: '0.8rem', color: '#666'}}>21mm Grid Cells</div>
+                </div>
+                <div>
+                  <strong>{(drawerMM.width / 1000).toFixed(2)}m × {(drawerMM.length / 1000).toFixed(2)}m</strong>
+                  <div style={{fontSize: '0.8rem', color: '#666'}}>Actual Size</div>
+                </div>
+                <div>
+                  <strong>{(drawerMM.width * drawerMM.length / 1000000).toFixed(3)}m²</strong>
+                  <div style={{fontSize: '0.8rem', color: '#666'}}>Area</div>
+                </div>
+              </div>
+              <div style={{marginTop: '0.5rem', fontSize: '0.8rem', color: '#666'}}>
+                The grid represents 21mm cells for precise bin placement. Your image will be cropped to the red border area.
+              </div>
+            </div>
+          </div>
+        )}
+
+        <SubmitButton expanded={isExpanded} onClick={handleSubmit} disabled={!canSubmit}>
+          {uploading ? 'Processing...' : (!underlayImage ? 'Preparing Image...' : 'Continue to Layout')}
         </SubmitButton>
       </Card>
     </SetupContainer>

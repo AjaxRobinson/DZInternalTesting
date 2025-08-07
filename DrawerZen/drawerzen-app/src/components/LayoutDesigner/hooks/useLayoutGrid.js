@@ -2,7 +2,28 @@ import { useState, useRef, useCallback } from 'react';
 import { GRID_SIZE } from '../LayoutDesigner.constants';
 
 export const useLayoutGrid = (initialDimensions = { width: 420, length: 420 }) => {
-  const [drawerDimensions, setDrawerDimensions] = useState(initialDimensions);
+  // Apply viewport-aware orientation to initial dimensions
+  const getOrientedDimensions = (dims) => {
+    if (!dims.width || !dims.length) return dims;
+    
+    const isViewportLandscape = window.innerWidth > window.innerHeight;
+    
+    if (isViewportLandscape) {
+      // Landscape viewport: put larger dimension on width (X-axis)
+      return {
+        width: Math.max(dims.width, dims.length),
+        length: Math.min(dims.width, dims.length)
+      };
+    } else {
+      // Portrait viewport: put larger dimension on length (Y-axis)
+      return {
+        width: Math.min(dims.width, dims.length),
+        length: Math.max(dims.width, dims.length)
+      };
+    }
+  };
+  
+  const [drawerDimensions, setDrawerDimensions] = useState(getOrientedDimensions(initialDimensions));
   const [cellPixelSize, setCellPixelSize] = useState(20);
   const [gridBounds, setGridBounds] = useState({ width: 0, height: 0 });
   const [isCustomDrawer, setIsCustomDrawer] = useState(false);
@@ -52,9 +73,14 @@ export const useLayoutGrid = (initialDimensions = { width: 420, length: 420 }) =
     return boundedCellSize;
   }, [gridCols, gridRows, gridAspectRatio]);
 
+  // Custom setDrawerDimensions that applies orientation logic
+  const setDrawerDimensionsWithOrientation = (newDimensions) => {
+    setDrawerDimensions(getOrientedDimensions(newDimensions));
+  };
+
   return {
     drawerDimensions,
-    setDrawerDimensions,
+    setDrawerDimensions: setDrawerDimensionsWithOrientation,
     cellPixelSize,
     setCellPixelSize,
     gridBounds,
