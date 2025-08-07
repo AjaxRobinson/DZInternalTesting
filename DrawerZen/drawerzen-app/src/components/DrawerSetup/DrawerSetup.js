@@ -488,6 +488,17 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Track portrait mode for mobile continue button
+  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
+  useEffect(() => {
+    const handleResize = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+      setDimensions(prev => ({ ...prev }));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Debug logging
   console.log('DrawerSetup render - image state:', {
     image: !!image,
@@ -579,9 +590,19 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
   };
 
   const handleDimensionChange = (field, value) => {
-    const newDimensions = { ...dimensions, [field]: value };
+    let val = value;
+    if (field === 'width' || field === 'length') {
+      if (val !== '') {
+        val = Math.max(42, Math.min(1000, parseFloat(val)));
+      }
+    }
+    if (field === 'height') {
+      if (val !== '') {
+        val = Math.max(20, Math.min(300, parseFloat(val)));
+      }
+    }
+    const newDimensions = { ...dimensions, [field]: val };
     setDimensions(newDimensions);
-    
     // Update data manager if available and all dimensions are filled
     if (dataManager && newDimensions.width && newDimensions.length && newDimensions.height) {
       dataManager.updateDrawerDimensions({
@@ -611,11 +632,14 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
     }
 
     if (
-      dimensionsInMM.width < 21 ||
-      dimensionsInMM.length < 21 ||
-      dimensionsInMM.height < 0
+      dimensionsInMM.width < 42 ||
+      dimensionsInMM.width > 1000 ||
+      dimensionsInMM.length < 42 ||
+      dimensionsInMM.length > 1000 ||
+      dimensionsInMM.height < 20 ||
+      dimensionsInMM.height > 300
     ) {
-      alert('Drawer dimensions must be at least 21mm wide and deep.');
+      alert('Drawer dimensions must be:\n  - Width and Length: 42mm to 1000mm\n  - Height: 20mm to 300mm');
       return;
     }
 
@@ -871,6 +895,13 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
         <SubmitButton expanded={isExpanded} onClick={handleSubmit} disabled={!canSubmit}>
           {uploading ? 'Processing...' : (!underlayImage ? 'Preparing Image...' : 'Continue to Layout')}
         </SubmitButton>
+
+        {/* Continue to Layout Button - always visible in portrait mode or on mobile */}
+        {(isPortrait || window.innerWidth < 768) && (
+          <SubmitButton expanded={isExpanded} onClick={handleSubmit} disabled={!canSubmit}>
+            {uploading ? 'Processing...' : (!underlayImage ? 'Preparing Image...' : 'Continue to Layout')}
+          </SubmitButton>
+        )}
       </Card>
     </SetupContainer>
   );
