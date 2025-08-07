@@ -590,18 +590,8 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
   };
 
   const handleDimensionChange = (field, value) => {
-    let val = value;
-    if (field === 'width' || field === 'length') {
-      if (val !== '') {
-        val = Math.max(42, Math.min(1000, parseFloat(val)));
-      }
-    }
-    if (field === 'height') {
-      if (val !== '') {
-        val = Math.max(20, Math.min(300, parseFloat(val)));
-      }
-    }
-    const newDimensions = { ...dimensions, [field]: val };
+    // Only update value, do not enforce min/max here
+    const newDimensions = { ...dimensions, [field]: value };
     setDimensions(newDimensions);
     // Update data manager if available and all dimensions are filled
     if (dataManager && newDimensions.width && newDimensions.length && newDimensions.height) {
@@ -793,6 +783,13 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
               type="number"
               value={dimensions.width}
               onChange={(e) => handleDimensionChange('width', e.target.value)}
+              onBlur={(e) => {
+                let val = e.target.value;
+                if (val !== '') {
+                  val = Math.max(42, Math.min(1000, parseFloat(val)));
+                }
+                handleDimensionChange('width', val);
+              }}
               placeholder={unit === 'mm' ? 'e.g. 400' : 'e.g. 15.7'}
               min={unit === 'mm' ? '21' : '0.83'}
               step={unit === 'mm' ? '1' : '0.1'}
@@ -805,6 +802,13 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
               type="number"
               value={dimensions.length}
               onChange={(e) => handleDimensionChange('length', e.target.value)}
+              onBlur={(e) => {
+                let val = e.target.value;
+                if (val !== '') {
+                  val = Math.max(42, Math.min(1000, parseFloat(val)));
+                }
+                handleDimensionChange('length', val);
+              }}
               placeholder={unit === 'mm' ? 'e.g. 300' : 'e.g. 11.8'}
               min={unit === 'mm' ? '21' : '0.83'}
               step={unit === 'mm' ? '1' : '0.1'}
@@ -817,6 +821,13 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
               type="number"
               value={dimensions.height}
               onChange={(e) => handleDimensionChange('height', e.target.value)}
+              onBlur={(e) => {
+                let val = e.target.value;
+                if (val !== '') {
+                  val = Math.max(20, Math.min(300, parseFloat(val)));
+                }
+                handleDimensionChange('height', val);
+              }}
               placeholder={unit === 'mm' ? 'e.g. 50' : 'e.g. 2.0'}
               min="0"
               step={unit === 'mm' ? '1' : '0.1'}
