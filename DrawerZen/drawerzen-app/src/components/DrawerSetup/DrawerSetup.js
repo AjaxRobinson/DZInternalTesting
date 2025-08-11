@@ -466,13 +466,17 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
     length: initialDimensions?.length || '',
     height: initialDimensions?.height || ''
   });
+  // Store original uploaded image (client-side)
   const [image, setImage] = useState(dataManager?.appData?.uploadedImage?.url || null);
+  const [originalImage, setOriginalImage] = useState(dataManager?.appData?.uploadedImage?.url || null);
   const [uploading, setUploading] = useState(false);
-  
-  // Transform-related state
   // Store transform (corner positions)
   const [transform, setTransform] = useState(dataManager?.appData?.uploadedImage?.transform || null);
-  // Store exported/cropped underlay image
+  // Store 4-corner deltas relative to grid center
+  const [cornerDeltas, setCornerDeltas] = useState(null);
+  // Store cropped image (client-side)
+  const [croppedImage, setCroppedImage] = useState(null);
+  // Store exported/cropped underlay image (for LayoutDesigner)
   const [underlayImage, setUnderlayImage] = useState(null);
   // Store rotated image
   const [rotatedImage, setRotatedImage] = useState(null);
@@ -534,58 +538,65 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
   const showHeaders = !isExpanded;
 
   const handleImageUpload = (e) => {
-    const file = e.target.files[0];
     setRotatedImage(null); // Reset any previous rotation
+    const file = e.target.files[0];
     if (file) {
-      console.log('File selected:', file.name);
       setUploading(true);
-      
-      // Create preview URL for immediate display
       const reader = new FileReader();
       reader.onload = (event) => {
         const imageUrl = event.target.result;
-        console.log('Setting image URL:', imageUrl ? 'Success' : 'Failed');
-        
         setImage(imageUrl);
+        setOriginalImage(imageUrl);
+        setCroppedImage(null);
         setTransform(null);
-        
+        setCornerDeltas(null);
         setUploading(false);
-        
-        // Store in data manager
         if (dataManager) {
-          dataManager.updateUploadedImage({
-            url: imageUrl
-          });
+          dataManager.updateUploadedImage({ url: imageUrl });
         }
       };
-      
       reader.onerror = () => {
-        console.error('FileReader error');
         setUploading(false);
       };
-      
       reader.readAsDataURL(file);
     }
   };
 
-  // Save transform to dataManager
-  const handleTransformChange = (newTransform) => {
+  // Save transform and calculate 4-corner deltas relative to grid center
+  const handleTransformChange = (newTransform, gridCenter) => {
     setTransform(newTransform);
+    if (newTransform && gridCenter) {
+      // Calculate deltas for each corner
+      const deltas = {
+        topLeft: {
+          x: newTransform.topLeft.x - gridCenter.x,
+          y: newTransform.topLeft.y - gridCenter.y
+        },
+        topRight: {
+          x: newTransform.topRight.x - gridCenter.x,
+          y: newTransform.topRight.y - gridCenter.y
+        },
+        bottomLeft: {
+          x: newTransform.bottomLeft.x - gridCenter.x,
+          y: newTransform.bottomLeft.y - gridCenter.y
+        },
+        bottomRight: {
+          x: newTransform.bottomRight.x - gridCenter.x,
+          y: newTransform.bottomRight.y - gridCenter.y
+        }
+      };
+      setCornerDeltas(deltas);
+    }
     if (dataManager) {
-      dataManager.updateUploadedImage({
-        url: image,
-        transform: newTransform
-      });
+      dataManager.updateUploadedImage({ url: image, transform: newTransform });
     }
   };
   // Callback to receive the cropped/distorted image from FreeTransform
   const handleExportImage = (dataURL) => {
+    setCroppedImage(dataURL);
     setUnderlayImage(dataURL);
     if (dataManager) {
-      dataManager.updateUploadedImage({
-        ...dataManager.appData.uploadedImage,
-        underlay: dataURL
-      });
+      dataManager.updateUploadedImage({ ...dataManager.appData.uploadedImage, underlay: dataURL });
     }
   };
 
@@ -604,60 +615,45 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
   };
 
   const handleSubmit = async () => {
-    let dimensionsInMM;
+    // Use the raw user input dimensions, not the viewport-oriented version
+    let rawDimensions;
     if (unit === 'inches') {
-      dimensionsInMM = {
+      rawDimensions = {
         width: parseFloat(dimensions.width) * 25.4,
         length: parseFloat(dimensions.length) * 25.4,
         height: parseFloat(dimensions.height) * 25.4,
         unit: 'mm',
       };
     } else {
-      dimensionsInMM = {
+      rawDimensions = {
         width: parseFloat(dimensions.width),
         length: parseFloat(dimensions.length),
         height: parseFloat(dimensions.height),
         unit: 'mm',
       };
     }
-
-    if (
-      dimensionsInMM.width < 42 ||
-      dimensionsInMM.width > 1000 ||
-      dimensionsInMM.length < 42 ||
-      dimensionsInMM.length > 1000 ||
-      dimensionsInMM.height < 20 ||
-      dimensionsInMM.height > 300
-    ) {
-      alert('Drawer dimensions must be:\n  - Width and Length: 42mm to 1000mm\n  - Height: 20mm to 300mm');
-      return;
-    }
-
-    // Upload the final image to Google Drive if we have a file and haven't uploaded yet
-    if (dataManager && dataManager.appData.uploadedImage?.file && !dataManager.appData.uploadedImage?.fileId) {
+    // Upload original image to Google Drive
+    if (dataManager && originalImage) {
       setUploading(true);
       try {
-        const result = await dataManager.uploadImage(dataManager.appData.uploadedImage.file);
-        if (result.success) {
-          // Update with the uploaded URL
-          dataManager.updateUploadedImage({
-            ...dataManager.appData.uploadedImage,
-            url: result.imageUrl,
-            fileId: result.fileId,
-            file: undefined // Remove the file blob after successful upload
-          });
-          setRotatedImage(null); // Reset any previous rotation
-        }
+        await dataManager.uploadImageToDrive(originalImage);
       } catch (error) {
-        console.error('Error uploading image:', error);
         // Continue anyway with local image
       } finally {
         setUploading(false);
       }
     }
-
-    // Only use the cropped/distorted image as underlay on layout page
-    onComplete({ ...dimensionsInMM, image, transform, underlay: underlayImage });
+    // Save corner deltas to spreadsheet
+    if (dataManager && cornerDeltas) {
+      await dataManager.saveCornerDeltasToSheet(cornerDeltas);
+    }
+    // Pass the raw user dimensions to the layout page
+    onComplete({
+      drawerDimensions: rawDimensions,
+      underlayImage: croppedImage,
+      transform,
+      cornerDeltas
+    });
     navigate('/layout');
   };
 
@@ -691,7 +687,7 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
   const isValid = dimensions.width && dimensions.length && dimensions.height && image;
 
   // Only allow submit if the cropped/distorted image is available
-  const canSubmit = isValid && !!underlayImage && !uploading;
+  const canSubmit = isValid && !!croppedImage && !uploading;
   // Calculate grid dimensions and preview settings with viewport-aware orientation
   const getDrawerDimensionsInMM = () => {
     if (!dimensions.width || !dimensions.length) return { width: 0, length: 0 };
@@ -784,11 +780,17 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
               value={dimensions.width}
               onChange={(e) => handleDimensionChange('width', e.target.value)}
               onBlur={(e) => {
-                let val = e.target.value;
-                if (val !== '') {
-                  val = Math.max(42, Math.min(1000, parseFloat(val)));
+                let val = parseFloat(e.target.value);
+                if (!isNaN(val)) {
+                  if (unit === 'mm') {
+                    val = Math.max(42, Math.min(1000, val));
+                  } else {
+                    const minInches = 42 / 25.4;
+                    const maxInches = 1000 / 25.4;
+                    val = Math.max(minInches, Math.min(maxInches, val));
+                  }
+                  handleDimensionChange('width', val);
                 }
-                handleDimensionChange('width', val);
               }}
               placeholder={unit === 'mm' ? 'e.g. 400' : 'e.g. 15.7'}
               min={unit === 'mm' ? '21' : '0.83'}
@@ -803,11 +805,17 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
               value={dimensions.length}
               onChange={(e) => handleDimensionChange('length', e.target.value)}
               onBlur={(e) => {
-                let val = e.target.value;
-                if (val !== '') {
-                  val = Math.max(42, Math.min(1000, parseFloat(val)));
+                let val = parseFloat(e.target.value);
+                if (!isNaN(val)) {
+                  if (unit === 'mm') {
+                    val = Math.max(42, Math.min(1000, val));
+                  } else {
+                    const minInches = 42 / 25.4;
+                    const maxInches = 1000 / 25.4;
+                    val = Math.max(minInches, Math.min(maxInches, val));
+                  }
+                  handleDimensionChange('length', val);
                 }
-                handleDimensionChange('length', val);
               }}
               placeholder={unit === 'mm' ? 'e.g. 300' : 'e.g. 11.8'}
               min={unit === 'mm' ? '21' : '0.83'}
@@ -822,11 +830,17 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
               value={dimensions.height}
               onChange={(e) => handleDimensionChange('height', e.target.value)}
               onBlur={(e) => {
-                let val = e.target.value;
-                if (val !== '') {
-                  val = Math.max(20, Math.min(300, parseFloat(val)));
+                let val = parseFloat(e.target.value);
+                if (!isNaN(val)) {
+                  if (unit === 'mm') {
+                    val = Math.max(20, Math.min(300, val));
+                  } else {
+                    const minInches = 20 / 25.4;
+                    const maxInches = 300 / 25.4;
+                    val = Math.max(minInches, Math.min(maxInches, val));
+                  }
+                  handleDimensionChange('height', val);
                 }
-                handleDimensionChange('height', val);
               }}
               placeholder={unit === 'mm' ? 'e.g. 50' : 'e.g. 2.0'}
               min="0"

@@ -172,8 +172,9 @@ export const GridContainer = styled.div`
   flex-direction: column;
   align-items: center;
   max-width: 100%;
-  overflow: visible; /* Allow buttons to show outside */
+  overflow: visible;
   flex: 1;
+  height: 100%;
 `;
 
 export const ActionButtonsContainer = styled.div`
@@ -181,16 +182,14 @@ export const ActionButtonsContainer = styled.div`
   flex-direction: column;
   gap: 0.75rem;
   flex-shrink: 0;
-  width: 140px;
-  position: absolute;
-  left: -160px; /* Position to the left of the grid */
-  top: 0;
+  width: 100%;
+  position: static;
+  left: auto;
+  top: auto;
   z-index: 20;
-  
+
   @media (max-width: 768px) {
-    width: 120px;
     gap: 0.5rem;
-    left: -140px;
   }
 `;
 
@@ -460,4 +459,86 @@ export const InstructionText = styled.p`
   line-height: 1.1;
   height: 1rem;
   overflow: hidden;
+`;
+
+export const LayoutMainColumns = styled.div`
+  display: grid;
+  grid-template-columns: minmax(140px, 20%) 1fr minmax(300px, 30%);
+  gap: 1.25rem;
+  width: 100%;
+  flex: 1;
+  overflow: hidden;
+  align-items: start;
+  position: relative;
+  height: 100%;
+
+  @media (max-width: 960px) {
+    grid-template-columns: 18% 1fr 32%;
+  }
+  @media (max-width: 820px) {
+    grid-template-columns: 1fr; /* fallback to single column */
+    grid-auto-rows: max-content;
+    height: auto;
+  }
+`;
+
+export const LeftColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: sticky;
+  top: 0.5rem;
+  align-self: start;
+  height: fit-content;
+`;
+
+export const CenterColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  height: 100%;
+`;
+
+export const RightColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  height: 100%;
+`;
+
+export const ReviewButtonContainer = styled.div`
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 0 1.25rem;
+`;
+
+export const ReviewButton = styled(PrimaryButton)`
+  width: 70%;
+  font-size: 0.9rem;
+`;
+
+export const Drawer3DWrapper = styled.div`
+  flex: 0 0 auto;
+  height: 32%;
+  min-height: 180px;
+  position: relative;
+`;
+
+export const BinOptionsAccordion = styled.div`
+  flex: 1 1 auto;
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.35s ease;
+  opacity: ${props => props.open ? 1 : 0};
+  pointer-events: ${props => props.open ? 'auto' : 'none'};
 `;

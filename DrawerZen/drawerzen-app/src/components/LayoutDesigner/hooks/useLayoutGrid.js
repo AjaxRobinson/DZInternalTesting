@@ -2,25 +2,10 @@ import { useState, useRef, useCallback } from 'react';
 import { GRID_SIZE } from '../LayoutDesigner.constants';
 
 export const useLayoutGrid = (initialDimensions = { width: 420, length: 420 }) => {
-  // Apply viewport-aware orientation to initial dimensions
+  // Don't apply viewport-aware orientation - use exact user input dimensions
   const getOrientedDimensions = (dims) => {
-    if (!dims.width || !dims.length) return dims;
-    
-    const isViewportLandscape = window.innerWidth > window.innerHeight;
-    
-    if (isViewportLandscape) {
-      // Landscape viewport: put larger dimension on width (X-axis)
-      return {
-        width: Math.max(dims.width, dims.length),
-        length: Math.min(dims.width, dims.length)
-      };
-    } else {
-      // Portrait viewport: put larger dimension on length (Y-axis)
-      return {
-        width: Math.min(dims.width, dims.length),
-        length: Math.max(dims.width, dims.length)
-      };
-    }
+    // Simply return the dimensions as-is, preserving user input
+    return dims;
   };
   
   const [drawerDimensions, setDrawerDimensions] = useState(getOrientedDimensions(initialDimensions));
@@ -31,6 +16,13 @@ export const useLayoutGrid = (initialDimensions = { width: 420, length: 420 }) =
   // Step 2: Generate cell-based grid from user input (21mm cells)
   const gridCols = Math.floor(drawerDimensions.width / GRID_SIZE);
   const gridRows = Math.floor(drawerDimensions.length / GRID_SIZE);
+  
+  console.log('useLayoutGrid - Grid calculation:', {
+    drawerDimensions,
+    GRID_SIZE,
+    gridCols,
+    gridRows
+  });
   
   // Calculate aspect ratio based on cell count
   const gridAspectRatio = gridCols / gridRows;

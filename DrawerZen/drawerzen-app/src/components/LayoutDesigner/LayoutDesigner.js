@@ -8,9 +8,6 @@ import { GRID_SIZE, STANDARD_BIN_SIZES, colors } from './LayoutDesigner.constant
 import { calculatePrice, calculateBinPrice, calculateBaseplateCost } from './LayoutDesigner.utils';
 import { 
   DesignerContainer,
-  BinCarousel,
-  CarouselContent,
-  CarouselHeader,
   DrawerContainer,
   GridSection,
   GridAndPanelContainer,
@@ -19,7 +16,15 @@ import {
   GridBoundingBox,
   ErrorNotification,
   CenterErrorMessage,
-  InstructionText
+  InstructionText,
+  LayoutMainColumns,
+  LeftColumn,
+  CenterColumn,
+  RightColumn,
+  ReviewButtonContainer,
+  ReviewButton,
+  Drawer3DWrapper,
+  BinOptionsAccordion
 } from './LayoutDesigner.styles';
 
 // Custom hooks
@@ -34,10 +39,12 @@ import { BinSortingService } from './services/BinSortingService';
 // Components
 import ActionButtons from './components/ActionButtons';
 import BinGrid from './components/BinGrid';
-import DraggableBin from './DraggableBin';
-import BinModificationPanel from './BinModificationPanel';
+import Drawer3DView from './components/Drawer3DView';
+import BinOptionsPanel from './components/BinOptionsPanel';
 
 export default function LayoutDesigner({ drawerDimensions, availableBins = [], onLayoutComplete, initialLayout, underlayImage }) {
+  // Undo stack for placedBins and remainingBins
+  const [undoStack, setUndoStack] = useState([]);
   const navigate = useNavigate();
   
   // Window size state for responsive grid
@@ -57,14 +64,30 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
     gridRows,
     gridAspectRatio,
     calculateGridSize
-  } = useLayoutGrid(drawerDimensions);
+  } = useLayoutGrid({
+    ...drawerDimensions,
+    maxWidth: 320,
+    maxLength: 320
+  });
 
   // Update drawer dimensions when props change
   useEffect(() => {
+    console.log('LayoutDesigner - drawerDimensions prop:', drawerDimensions);
     if (drawerDimensions) {
       setDrawerDimensions(drawerDimensions);
     }
   }, [drawerDimensions, setDrawerDimensions]);
+
+  // Debug logging for grid dimensions
+  useEffect(() => {
+    console.log('LayoutDesigner - Grid state:', {
+      gridDimensions,
+      gridCols,
+      gridRows,
+      cellPixelSize,
+      gridBounds
+    });
+  }, [gridDimensions, gridCols, gridRows, cellPixelSize, gridBounds]);
 
   // Restore bins from initialLayout when available
   useEffect(() => {
@@ -80,7 +103,8 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
         height: item.height || 21,
         shadowBoard: item.shadowBoard || false,
         name: item.name || `Bin ${item.id}`,
-        color: item.color || colors[0]
+        color: item.color || colors[0],
+        colorway: item.colorway || 'cream'
       }));
       
       setPlacedBins(restoredBins);
@@ -105,17 +129,17 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
 
   // Calculate responsive cell size
   useEffect(() => {
-    const panelWidth = selectedBin ? 320 : 0;
+    // Removed dynamic panelWidth influence so grid remains static when selecting a bin
     const buttonWidth = 160;
     const isMobile = windowSize.width < 768;
     const gutterWidth = isMobile ? 32 : 80;
     const containerPadding = isMobile ? 32 : 64;
-    
-    const maxGridWidth = windowSize.width - gutterWidth - containerPadding - panelWidth - buttonWidth;
+
+    const maxGridWidth = windowSize.width - gutterWidth - containerPadding - buttonWidth;
     const maxGridHeight = (windowSize.height - 80) * 0.65; // Use 65% of remaining viewport height for grid area after nav
-    
+
     calculateGridSize(maxGridWidth, maxGridHeight);
-  }, [windowSize, selectedBin, calculateGridSize]);
+  }, [windowSize, calculateGridSize]);
 
   // Bin drawing hook
   const {
@@ -154,6 +178,31 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
   const showCenterError = (message) => {
     setCenterErrorMessage(message);
     setTimeout(() => setCenterErrorMessage(null), 3000);
+  };
+
+  // Push current state to undo stack
+  const pushUndoState = () => {
+    setUndoStack(prev => [
+      {
+        placedBins: [...placedBins],
+        remainingBins: [...remainingBins]
+      },
+      ...prev
+    ]);
+  };
+
+  // Undo handler
+  const handleUndo = () => {
+    if (undoStack.length === 0) {
+      showCenterError('Nothing to undo');
+      return;
+    }
+    const lastState = undoStack[0];
+    setPlacedBins(lastState.placedBins);
+    setRemainingBins(lastState.remainingBins);
+    setUndoStack(undoStack.slice(1));
+    setSelectedBin(null);
+    setSelectedBinId(null);
   };
 
   // Carousel drop zone setup
@@ -281,7 +330,8 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
             height: 21,
             shadowBoard: false,
             name: item.bin.label,
-            color: item.bin.color
+            color: item.bin.color,
+            colorway: 'cream'
           };
 
           if (isValidPlacement(newBin)) {
@@ -322,14 +372,17 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
   };
 
   const handleBinSave = (updatedBin) => {
+    pushUndoState();
     setPlacedBins(prev => prev.map(bin => 
       bin.id === updatedBin.id ? updatedBin : bin
     ));
+    // Collapse panel & deselect after save
     setSelectedBin(null);
     setSelectedBinId(null);
   };
 
   const handleBinDelete = (binId) => {
+    pushUndoState();
     handleBinDoubleClick(placedBins.find(bin => bin.id === binId));
     setSelectedBin(null);
     setSelectedBinId(null);
@@ -342,6 +395,7 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
 
   // Action button handlers
   const handleAutoSort = () => {
+    pushUndoState();
     if (placedBins.length === 0) {
       showCenterError('No bins to sort');
       return;
@@ -372,6 +426,7 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
   };
 
   const handleGenerateBins = () => {
+    pushUndoState();
     const newBins = [];
     let binCounter = 0;
     let currentPlacedBins = [...placedBins]; // Working copy to track placements
@@ -412,7 +467,9 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
               height: 21,
               shadowBoard: false,
               name: `Auto ${binCounter + 1}`,
-              color: colors[binCounter % colors.length]
+              // Updated: use standardized cream colorway instead of cycling legacy colors
+              colorway: 'cream',
+              color: '#F5E6C8'
             };
 
             // Check if this placement is valid
@@ -444,6 +501,7 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
   };
 
   const handleReset = () => {
+    pushUndoState();
     clearAllBins();
     setRemainingBins([...availableBins]);
     setSelectedBin(null);
@@ -508,86 +566,106 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
     return () => window.removeEventListener('resize', handleResize);
   }, [drawerDimensions, setDrawerDimensions]);
 
+  // Live update handler for bin properties
+  const handleBinLiveChange = (partialBin) => {
+    setPlacedBins(prev => prev.map(b => b.id === partialBin.id ? { ...b, ...partialBin } : b));
+    if (selectedBin?.id === partialBin.id) {
+      setSelectedBin(partialBin);
+    }
+  };
+
   return (
     <DesignerContainer>
-      <BinCarousel ref={carouselDrop} isCarouselDropTarget={isCarouselDropTarget}>
-        <CarouselHeader hasBins={remainingBins.length > 0} style={{ color: '#374151' }}>
-          Available Bins {isCarouselDropTarget && '(Drop here to store)'}
-        </CarouselHeader>
-        <CarouselContent hasBins={remainingBins.length > 0}>
-          {remainingBins.map((bin) => (
-            <DraggableBin key={bin.id} bin={bin} mode="carousel" />
-          ))}
-          {remainingBins.length === 0 && (
-            <p style={{ color: '#6b7280', margin: 0 }}>All bins have been placed</p>
-          )}
-        </CarouselContent>
-      </BinCarousel>
-
-      <DrawerContainer>
-        <GridAndPanelContainer>
-          <GridContainer>
-            <GridSection>
-              <GridWrapper>
-                <ActionButtons 
-                  onAutoSort={handleAutoSort}
-                  onGenerateBins={handleGenerateBins}
-                  onReset={handleReset}
-                  onReview={handleReview}
-                  hasPlacedBins={placedBins.length > 0}
-                />
-
-                <GridBoundingBox 
-                  width={gridBounds.width}
-                  height={gridBounds.height}
-                >
-                  <BinGrid
-                    ref={drop}
-                    gridCols={gridCols}
-                    gridRows={gridRows}
-                    cellSize={cellPixelSize}
-                    placedBins={placedBins}
-                    selectedBin={selectedBin}
-                    onBinClick={handleBinClick}
-                    onBinDoubleClick={handleBinDoubleClick}
-                    draggedBin={draggedBin}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    dropShadow={dropShadow}
-                    onGridHover={handleGridHover}
-                    onGridDrop={handleGridDrop}
-                    drawingContainerRef={drawingContainerRef}
-                    isDrawing={isDrawing}
-                    drawingPreview={drawingPreview}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    underlayImage={underlayImage}
-                  />
-                </GridBoundingBox>
-              </GridWrapper>
-
-              <InstructionText>
-                Click and drag to draw custom bins • Double-click bins to delete • Drop bins here to place them
-              </InstructionText>
-            </GridSection>
-          </GridContainer>
-
-          <BinModificationPanel
-            open={!!selectedBin}
-            bin={selectedBin}
-            onClose={handlePanelClose}
-            onSave={handleBinSave}
-            onDelete={handleBinDelete}
+      <LayoutMainColumns>
+        <LeftColumn>
+          <ActionButtons 
+            onGenerateBins={handleGenerateBins}
+            onReset={handleReset}
+            onReview={handleReview}
+            onUndo={handleUndo}
+            hasPlacedBins={placedBins.length > 0}
           />
-        </GridAndPanelContainer>
-      </DrawerContainer>
+        </LeftColumn>
+        <CenterColumn>
+          <DrawerContainer>
+            <GridAndPanelContainer>
+              <GridContainer>
+                <GridSection>
+                  <GridWrapper>
+                    {errorMessage && (
+                      <ErrorNotification style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', zIndex: 1000, pointerEvents: 'none' }}>
+                        {errorMessage}
+                      </ErrorNotification>
+                    )}
+                    <GridBoundingBox 
+                      width={gridBounds.width}
+                      height={gridBounds.height}
+                    >
+                      <div style={{
+                        position: 'absolute',
+                        top: '-2.2rem',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        fontWeight: 'bold',
+                        color: '#374151',
+                        fontSize: '1rem',
+                        zIndex: 100
+                      }}>
+                        Grid: {gridCols} cols × {gridRows} rows (min: 1, max: {Math.floor(320 / GRID_SIZE)})
+                      </div>
+                      <BinGrid
+                        ref={drop}
+                        gridCols={gridCols}
+                        gridRows={gridRows}
+                        cellSize={cellPixelSize}
+                        placedBins={placedBins}
+                        selectedBin={selectedBin}
+                        onBinClick={handleBinClick}
+                        onBinDoubleClick={handleBinDoubleClick}
+                        draggedBin={draggedBin}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        dropShadow={dropShadow}
+                        onGridHover={handleGridHover}
+                        onGridDrop={handleGridDrop}
+                        drawingContainerRef={drawingContainerRef}
+                        isDrawing={isDrawing}
+                        drawingPreview={drawingPreview}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        underlayImage={underlayImage}
+                      />
+                    </GridBoundingBox>
+                  </GridWrapper>
 
-      {errorMessage && (
-        <ErrorNotification>
-          {errorMessage}
-        </ErrorNotification>
-      )}
+                  <InstructionText>
+                    Click and drag to draw custom bins • Double-click bins to delete • Drop bins here to place them
+                  </InstructionText>
+                </GridSection>
+              </GridContainer>
+            </GridAndPanelContainer>
+          </DrawerContainer>
+        </CenterColumn>
+        <RightColumn>
+          <Drawer3DWrapper>
+            <Drawer3DView drawerDimensions={gridDimensions} bins={placedBins} selectedBinId={selectedBin?.id} />
+          </Drawer3DWrapper>
+          <BinOptionsAccordion open={!!selectedBin}>
+            <BinOptionsPanel
+              open={!!selectedBin}
+              bin={selectedBin}
+              onSave={handleBinSave}
+              onLiveChange={handleBinLiveChange}
+            />
+          </BinOptionsAccordion>
+        </RightColumn>
+      </LayoutMainColumns>
+      <ReviewButtonContainer>
+        <ReviewButton onClick={handleReview} disabled={!placedBins.length}>
+          Review Order
+        </ReviewButton>
+      </ReviewButtonContainer>
 
       {centerErrorMessage && (
         <CenterErrorMessage>

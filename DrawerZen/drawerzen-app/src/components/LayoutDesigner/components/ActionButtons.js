@@ -6,26 +6,23 @@ import {
 } from '../LayoutDesigner.styles';
 
 const ActionButtons = ({ 
-  onAutoSort, 
   onGenerateBins, 
   onReset, 
   onReview, 
+  onUndo, 
   hasPlacedBins 
 }) => {
   return (
     <ActionButtonsContainer>
-      <PrimaryButton onClick={onAutoSort} disabled={!hasPlacedBins}>
-        Auto Sort
-      </PrimaryButton>
       <PrimaryButton onClick={onGenerateBins}>
-        Generate Bins
+        Fill Empty Bin Space
+      </PrimaryButton>
+      <PrimaryButton onClick={onUndo} disabled={!hasPlacedBins}>
+        Undo
       </PrimaryButton>
       <SecondaryButton onClick={onReset} disabled={!hasPlacedBins}>
         Reset
       </SecondaryButton>
-      <PrimaryButton onClick={onReview} disabled={!hasPlacedBins}>
-        Review Order
-      </PrimaryButton>
     </ActionButtonsContainer>
   );
 };

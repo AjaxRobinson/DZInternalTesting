@@ -30,12 +30,16 @@ export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gri
     const actualWidth = width * GRID_SIZE;
     const actualLength = length * GRID_SIZE;
     const area = actualWidth * actualLength;
-    
+    // Area-based minimum bin validation
+    if (area <= 441) { // 21mm x 21mm = 441 square mm (1 cell)
+      return false;
+    }
+    // Otherwise, check all constraints
     return actualWidth >= BIN_CONSTRAINTS.minWidth && 
            actualWidth <= BIN_CONSTRAINTS.maxWidth && 
            actualLength >= BIN_CONSTRAINTS.minLength && 
            actualLength <= BIN_CONSTRAINTS.maxLength &&
-           area >= BIN_CONSTRAINTS.MIN_AREA_REQUIREMENT; // Prevent 1x1 cell bins
+           area >= BIN_CONSTRAINTS.MIN_AREA_REQUIREMENT;
   }, []);
 
   const getGridPosition = useCallback((clientX, clientY) => {
@@ -98,8 +102,19 @@ export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gri
     const isValidSize = validateBinSize(width, length);
     
     if (!isValidSize) {
-      setDrawingError('size');
-      setErrorMessage(`Bin size must be between ${BIN_CONSTRAINTS.minWidth}mm and ${BIN_CONSTRAINTS.maxWidth}mm`);
+      const minCells = Math.round(BIN_CONSTRAINTS.minWidth / GRID_SIZE);
+      const maxCells = Math.round(BIN_CONSTRAINTS.maxWidth / GRID_SIZE);
+      // Show error if either dimension is below min or above max
+      if (width <= 1 && length <= 1) {
+        setDrawingError('size');
+        setErrorMessage(`Bin size must be between ${minCells} and ${maxCells} cells`);
+      } else if (width > maxCells || length > maxCells) {
+        setDrawingError('size');
+        setErrorMessage(`Bin size cannot exceed ${maxCells} cells`);
+      } else {
+        setDrawingError(null);
+        setErrorMessage('');
+      }
     } else if (hasCollision) {
       setDrawingError('collision');
       setErrorMessage('Cannot place bin here - overlaps with existing bin');
@@ -154,7 +169,8 @@ export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gri
         height: 21,
         shadowBoard: false,
         name: `Custom ${Math.round(binInMm.width)}×${Math.round(binInMm.length)}mm`,
-        color: '#10b981'
+        color: '#F5E6C8',
+        colorway: 'cream'
       };
       
       setPlacedBins(prev => [...prev, newBin]);

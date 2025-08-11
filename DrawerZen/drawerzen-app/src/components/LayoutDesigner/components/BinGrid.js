@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useMemo } from 'react';
 import DraggablePlacedBin from './DraggablePlacedBin';
 import { 
   Grid, 
@@ -30,13 +30,45 @@ const BinGrid = forwardRef(({
   onMouseUp,
   underlayImage
 }, ref) => {
+  const safeGridCols = Math.max(1, gridCols || 1);
+  const safeGridRows = Math.max(1, gridRows || 1);
+  const safeCellSize = Math.max(10, cellSize || 20);
+
+  const gridCells = useMemo(() => Array.from({ length: safeGridRows * safeGridCols }, (_, index) => {
+    const row = Math.floor(index / safeGridCols);
+    const col = index % safeGridCols;
+    const hasTopEmphasis = row % 2 === 0;
+    const hasLeftEmphasis = col % 2 === 0;
+    return (
+      <GridCell 
+        key={index} 
+        cellSize={safeCellSize}
+        hasTopEmphasis={hasTopEmphasis}
+        hasLeftEmphasis={hasLeftEmphasis}
+      />
+    );
+  }), [safeGridCols, safeGridRows, safeCellSize]);
+
+  const placedBinElements = useMemo(() => placedBins.map(bin => (
+    <DraggablePlacedBin
+      key={bin.id}
+      bin={bin}
+      cellSize={cellSize}
+      selected={selectedBin?.id === bin.id}
+      isDragging={draggedBin?.id === bin.id}
+      onClick={() => onBinClick(bin)}
+      onDoubleClick={() => onBinDoubleClick(bin)}
+      onDragStart={() => onDragStart(bin)}
+      onDragEnd={onDragEnd}
+    />
+  )), [placedBins, cellSize, selectedBin?.id, draggedBin?.id, onBinClick, onBinDoubleClick, onDragStart, onDragEnd]);
+
   return (
     <Grid 
-      cols={gridCols} 
-      rows={gridRows} 
-      cellSize={cellSize}
+      cols={safeGridCols} 
+      rows={safeGridRows} 
+      cellSize={safeCellSize}
       ref={(el) => {
-        // Assign both refs
         if (drawingContainerRef) drawingContainerRef.current = el;
         if (ref) ref(el);
       }}
@@ -48,36 +80,14 @@ const BinGrid = forwardRef(({
         backgroundPosition: 'center',
       }}
     >
-      {/* Render 21mm grid cells with visual emphasis lines every 42mm */}
-      {Array.from({ length: gridRows * gridCols }, (_, index) => {
-        const row = Math.floor(index / gridCols);
-        const col = index % gridCols;
-        
-        // Create emphasis on grid lines every 2 cells (every 42mm)
-        // This creates a visual 42mm grid pattern over the 21mm base grid
-        const hasTopEmphasis = row % 2 === 0;
-        const hasLeftEmphasis = col % 2 === 0;
-        
-        return (
-          <GridCell 
-            key={index} 
-            cellSize={cellSize}
-            hasTopEmphasis={hasTopEmphasis}
-            hasLeftEmphasis={hasLeftEmphasis}
-          />
-        );
-      })}
-
-      {/* Drawing overlay - only active when not dragging */}
+      {gridCells}
+      {/* Drawing overlay */}
       <DrawingOverlay
         onMouseDown={draggedBin ? undefined : onMouseDown}
         onMouseMove={draggedBin ? undefined : onMouseMove}
         onMouseUp={draggedBin ? undefined : onMouseUp}
-        style={{
-          pointerEvents: draggedBin ? 'none' : 'auto'
-        }}
+        style={{ pointerEvents: draggedBin ? 'none' : 'auto' }}
       />
-
       {/* Drawing preview */}
       {isDrawing && drawingPreview && (
         <DrawingPreview
@@ -90,7 +100,6 @@ const BinGrid = forwardRef(({
           error={drawingPreview.hasError}
         />
       )}
-
       {/* Drop shadow */}
       {dropShadow && (
         <DropShadow
@@ -104,25 +113,12 @@ const BinGrid = forwardRef(({
           error={dropShadow.error}
         />
       )}
-
       {/* Placed bins */}
-      {placedBins.map(bin => (
-        <DraggablePlacedBin
-          key={bin.id}
-          bin={bin}
-          cellSize={cellSize}
-          selected={selectedBin?.id === bin.id}
-          isDragging={draggedBin?.id === bin.id}
-          onClick={() => onBinClick(bin)}
-          onDoubleClick={() => onBinDoubleClick(bin)}
-          onDragStart={() => onDragStart(bin)}
-          onDragEnd={onDragEnd}
-        />
-      ))}
+      {placedBinElements}
     </Grid>
   );
 });
 
 BinGrid.displayName = 'BinGrid';
 
-export default BinGrid;
+export default React.memo(BinGrid);

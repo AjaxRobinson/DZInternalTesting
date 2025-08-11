@@ -15,22 +15,25 @@ const BIN_COLORS = [
   { name: 'Pink', value: colors[5] }     // '#ec4899'
 ];
 
+const COLORWAY_OPTIONS = [
+  { id: 'cream', name: 'Cream / Slate', bin: '#F5E6C8', bed: '#4A4A58' },
+  { id: 'blue', name: 'Dark Blue / Sky', bin: '#1A237E', bed: '#90CAF9' },
+  { id: 'black', name: 'Black / Lime', bin: '#222222', bed: '#B2FF59' }
+];
+
 // Styled Components
 const PanelContainer = styled.div`
-  width: ${props => props.open ? '320px' : '0px'};
-  height: 100%;
+  width: 100%;
+  height: ${props => props.open ? '100%' : '0px'};
   background: #fff;
-  box-shadow: ${props => props.open ? '-2px 0 12px rgba(0,0,0,0.08)' : 'none'};
-  z-index: 50;
+  box-shadow: ${props => props.open ? '0 2px 12px rgba(0,0,0,0.08)' : 'none'};
   display: flex;
   flex-direction: column;
-  transition: all 0.3s cubic-bezier(.4,0,.2,1);
-  border-left: ${props => props.open ? '1px solid #e5e7eb' : 'none'};
-  overflow: ${props => props.open ? 'visible' : 'hidden'};
-  flex-shrink: 0;
-  border-radius: 8px 0 0 8px;
+  transition: height 0.4s cubic-bezier(.4,0,.2,1), opacity 0.3s ease;
+  border: ${props => props.open ? '1px solid #e5e7eb' : 'none'};
+  overflow: hidden;
+  border-radius: 12px;
   opacity: ${props => props.open ? 1 : 0};
-  visibility: ${props => props.open ? 'visible' : 'hidden'};
 `;
 
 const PanelHeader = styled.div`
@@ -287,6 +290,7 @@ export default function BinModificationPanel({
   const [selectedColor, setSelectedColor] = useState(BIN_COLORS[0].value);
   const [shadowBoard, setShadowBoard] = useState(false);
   const [height, setHeight] = useState(21);
+  const [colorway, setColorway] = useState('cream');
 
   // Update local state when bin changes
   useEffect(() => {
@@ -295,6 +299,7 @@ export default function BinModificationPanel({
       setSelectedColor(bin.color || BIN_COLORS[0].value);
       setShadowBoard(bin.shadowBoard || false);
       setHeight(bin.height || 21);
+      setColorway(bin.colorway || 'cream');
     }
   }, [bin]);
 
@@ -305,7 +310,8 @@ export default function BinModificationPanel({
         name: binName,
         color: selectedColor,
         shadowBoard: shadowBoard,
-        height: height
+        height: height,
+        colorway
       });
     }
   };
@@ -321,7 +327,7 @@ export default function BinModificationPanel({
   const price = calculateBinPrice({ ...bin, shadowBoard, height });
 
   return (
-    <PanelContainer open={open} gridHeight={gridHeight}>
+    <PanelContainer open={open} gridHeight={gridHeight} style={{ flex: open ? '1 1 auto' : '0 0 auto', marginTop: '0.25rem' }}>
       <PanelHeader open={open}>
         <BinNameInput
           value={binName}
@@ -458,6 +464,18 @@ export default function BinModificationPanel({
               </ShadowDescription>
             </div>
           </ShadowToggle>
+        </Section>
+
+        <Section>
+          <SectionTitle>Colorway</SectionTitle>
+          <ColorOptions>
+            {COLORWAY_OPTIONS.map(cw => (
+              <ColorOption key={cw.id} onClick={() => setColorway(cw.id)}>
+                <ColorCircle color={cw.bin} selected={colorway === cw.id} />
+                <ColorLabel>{cw.name}</ColorLabel>
+              </ColorOption>
+            ))}
+          </ColorOptions>
         </Section>
       </PanelContent>
 

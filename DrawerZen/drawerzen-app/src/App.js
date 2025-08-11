@@ -86,8 +86,8 @@ function AppContent({ dataManager, defaultBins }) {
           {/* Step 1: Drawer Dimensions */}
           <Route path="/" element={
             <DrawerSetup 
-              onComplete={(dimensions) => {
-                updateDrawerDimensions(dimensions);
+              onComplete={(data) => {
+                updateDrawerDimensions(data.drawerDimensions);
               }}
               initialDimensions={appData.drawerDimensions}
               dataManager={dataManager}
@@ -107,7 +107,7 @@ function AppContent({ dataManager, defaultBins }) {
                 }}
                 initialLayout={appData.layoutConfig}
                 dataManager={dataManager}
-                underlayImage={appData.uploadedImage?.url}
+                underlayImage={appData.uploadedImage?.underlay || appData.uploadedImage?.url}
               />
             ) : (
               <Navigate to="/" />

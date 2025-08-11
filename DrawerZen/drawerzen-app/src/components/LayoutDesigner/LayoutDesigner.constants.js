@@ -37,12 +37,12 @@ export const STANDARD_BIN_SIZES = [
 // Validation constraints
 export const BIN_CONSTRAINTS = {
   minWidth: 21,
-  maxWidth: 250,
-  minLength: 42, // Minimum length is 42mm (2 cells) to prevent 1x1 bins
-  maxLength: 250,
+  maxWidth: 320,
+  minLength: 21, // Minimum length is 42mm (2 cells) to prevent 1x1 bins
+  maxLength: 320,
   MIN_SIZE: 21,
-  MIN_AREA_REQUIREMENT: 882, // Minimum area: 21mm x 42mm = 882 square mm (2 cells)
-  MAX_SIZE: 250,
+  MIN_AREA_REQUIREMENT: 441, // Minimum area: 21mm x 21mm = 441 square mm (1 cell)
+  MAX_SIZE: 320,
   GRID_INCREMENT: 21
 };
 
@@ -87,3 +87,9 @@ export const LAYOUT_CONSTANTS = {
     navBarHeightMobile: '70px'
   }
 };
+
+export const BIN_COLORWAYS = [
+  { id: 'cream', name: 'Cream / Slate', bin: '#F5E6C8', bed: '#4A4A58' },
+  { id: 'blue', name: 'Dark Blue / Sky', bin: '#1A237E', bed: '#90CAF9' },
+  { id: 'black', name: 'Black / Lime', bin: '#222222', bed: '#B2FF59' }
+];

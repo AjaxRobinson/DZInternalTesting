@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Box, Grid } from '@react-three/drei';
-import { GRID_SIZE } from '../LayoutDesigner/LayoutDesigner.constants';
+import Drawer3DView from '../LayoutDesigner/components/Drawer3DView';
 
 const CheckoutContainer = styled.div`
   max-width: 1200px;
@@ -187,90 +185,6 @@ const SuccessMessage = styled.div`
   margin-bottom: 1rem;
   font-size: 0.875rem;
 `;
-
-// 3D Drawer Preview Component
-function DrawerPreview({ layoutConfig, drawerDimensions }) {
-  const scale = 0.002; // Scale down for visualization
-  
-  return (
-    <Canvas camera={{ position: [10, 10, 10], fov: 50 }}>
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-      
-      {/* Drawer base */}
-      <Box 
-        args={[
-          drawerDimensions.width * scale,
-          0.1,
-          drawerDimensions.length * scale
-        ]} 
-        position={[0, -0.1, 0]}
-      >
-        <meshStandardMaterial color="#e5e7eb" />
-      </Box>
-      
-      {/* Drawer walls */}
-      {/* Front wall */}
-      <Box 
-        args={[drawerDimensions.width * scale, drawerDimensions.height * scale * 0.5, 0.05]} 
-        position={[0, drawerDimensions.height * scale * 0.25, drawerDimensions.length * scale * 0.5]}
-      >
-        <meshStandardMaterial color="#d1d5db" transparent opacity={0.3} />
-      </Box>
-      
-      {/* Back wall */}
-      <Box 
-        args={[drawerDimensions.width * scale, drawerDimensions.height * scale * 0.5, 0.05]} 
-        position={[0, drawerDimensions.height * scale * 0.25, -drawerDimensions.length * scale * 0.5]}
-      >
-        <meshStandardMaterial color="#d1d5db" transparent opacity={0.3} />
-      </Box>
-      
-      {/* Left wall */}
-      <Box 
-        args={[0.05, drawerDimensions.height * scale * 0.5, drawerDimensions.length * scale]} 
-        position={[-drawerDimensions.width * scale * 0.5, drawerDimensions.height * scale * 0.25, 0]}
-      >
-        <meshStandardMaterial color="#d1d5db" transparent opacity={0.3} />
-      </Box>
-      
-      {/* Right wall */}
-      <Box 
-        args={[0.05, drawerDimensions.height * scale * 0.5, drawerDimensions.length * scale]} 
-        position={[drawerDimensions.width * scale * 0.5, drawerDimensions.height * scale * 0.25, 0]}
-      >
-        <meshStandardMaterial color="#d1d5db" transparent opacity={0.3} />
-      </Box>
-      
-      {/* Render bins */}
-      {layoutConfig && Array.isArray(layoutConfig) && layoutConfig.map((bin) => {
-        // Convert mm to grid position and then to 3D coordinates
-        const gridX = bin.x / 21; // Convert from mm to grid cells
-        const gridY = bin.y / 21; // Convert from mm to grid cells
-        
-        const x = (gridX * 21 - drawerDimensions.width / 2 + bin.width / 2) * scale;
-        const z = (gridY * 21 - drawerDimensions.length / 2 + bin.length / 2) * scale;
-        const y = bin.height * scale / 2;
-        
-        // Use bin color or default
-        const color = bin.color || '#3b82f6';
-
-        return (
-          <Box
-            key={bin.id}
-            args={[bin.width * scale, bin.height * scale, bin.length * scale]}
-            position={[x, y, z]}
-          >
-            <meshStandardMaterial color={color} />
-          </Box>
-        );
-      })}
-      
-      <Grid args={[20, 20]} cellSize={1} cellColor="#999" sectionColor="#666" />
-      <OrbitControls enablePan={false} enableZoom={true} enableRotate={true} />
-    </Canvas>
-  );
-}
 
 export default function Checkout({ orderData, layoutConfig, drawerDimensions, customerInfo, dataManager }) {
   const navigate = useNavigate();
@@ -579,10 +493,7 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
               </p>
               
               <CanvasContainer>
-                <DrawerPreview 
-                  layoutConfig={orderData.bins} 
-                  drawerDimensions={drawerDimensions}
-                />
+                <Drawer3DView drawerDimensions={drawerDimensions} bins={orderData.bins} waveAnimation />
               </CanvasContainer>
               
               <OrderSummary>
