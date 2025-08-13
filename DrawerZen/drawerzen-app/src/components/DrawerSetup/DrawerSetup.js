@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import GridOverlay from '../GridOverlay/GridOverlay';
-import FreeTransform from './FreeTransform';
+import PerspectiveGridRectifier from './PerspectiveGridRectifier';
+import SupabaseService from '../../services/SupabaseService';
 
 const SetupContainer = styled.div`
   width: 100%;
   margin: 0 auto; /* Center the container */
-  padding: ${props => props.expanded ? '1rem' : '1rem'}; /* Standard spacing when expanded */
-  padding-top: ${props => props.expanded ? '1rem' : '1rem'}; /* Standard spacing from nav when expanded */
+  padding: ${props => props.$expanded ? '1rem' : '1rem'}; /* Standard spacing when expanded */
+  padding-top: ${props => props.$expanded ? '1rem' : '1rem'}; /* Standard spacing from nav when expanded */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -19,8 +20,8 @@ const SetupContainer = styled.div`
   transition: padding 0.6s ease-in-out;
   
   @media (max-width: 768px) {
-    padding: ${props => props.expanded ? '0.75rem' : '0.75rem'};
-    padding-top: ${props => props.expanded ? '0.75rem' : '0.75rem'};
+    padding: ${props => props.$expanded ? '0.75rem' : '0.75rem'};
+    padding-top: ${props => props.$expanded ? '0.75rem' : '0.75rem'};
     height: calc(100vh - 70px);
     max-height: calc(100vh - 70px);
   }
@@ -28,12 +29,12 @@ const SetupContainer = styled.div`
 
 const Card = styled.div`
   background: white;
-  padding: ${props => props.expanded ? '1.5rem' : '2.5rem'}; /* Reduce padding when expanded */
+  padding: ${props => props.$expanded ? '1.5rem' : '2.5rem'}; /* Reduce padding when expanded */
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-  margin-top: ${props => props.expanded ? '0' : '2rem'};
+  margin-top: ${props => props.$expanded ? '0' : '2rem'};
   width: 100%;
-  max-width: ${props => props.expanded ? '95%' : '800px'};
+  max-width: ${props => props.$expanded ? '95%' : '800px'};
   text-align: center;
   transition: all 0.6s ease-in-out;
   flex: 1; /* Allow it to grow and shrink within the container */
@@ -43,7 +44,7 @@ const Card = styled.div`
   overflow-x: hidden;
   
   @media (max-width: 768px) {
-    padding: ${props => props.expanded ? '1rem' : '1.5rem'};
+    padding: ${props => props.$expanded ? '1rem' : '1.5rem'};
     max-width: 100%;
   }
 `;
@@ -125,8 +126,8 @@ const UnitToggle = styled.div`
 const UnitButton = styled.button`
   flex: 1;
   padding: 0.5rem 1rem;
-  background: ${props => props.active ? '#4f46e5' : 'transparent'};
-  color: ${props => props.active ? 'white' : '#6b7280'};
+  background: ${props => props.$active ? '#4f46e5' : 'transparent'};
+  color: ${props => props.$active ? 'white' : '#6b7280'};
   border: none;
   border-radius: 6px;
   font-weight: 500;
@@ -137,7 +138,7 @@ const UnitButton = styled.button`
 const SubmitButton = styled.button`
   width: 100%;
   padding: 1rem;
-  margin-top: ${props => props.expanded ? '1rem' : '2rem'}; /* Reduce margin when expanded */
+  margin-top: ${props => props.$expanded ? '1rem' : '2rem'}; /* Reduce margin when expanded */
   background: #4f46e5;
   color: white;
   border: none;
@@ -261,11 +262,11 @@ const PageTitle = styled.h1`
   margin-bottom: 0.5rem;
   font-size: 2.5rem;
   font-weight: 700;
-  opacity: ${props => props.visible ? 1 : 0};
-  max-height: ${props => props.visible ? '200px' : '0'};
+  opacity: ${props => props.$visible ? 1 : 0};
+  max-height: ${props => props.$visible ? '200px' : '0'};
   overflow: hidden;
   transition: opacity 0.5s ease-in-out, max-height 0.5s ease-in-out, margin 0.5s ease-in-out;
-  margin-bottom: ${props => props.visible ? '0.5rem' : '0'};
+  margin-bottom: ${props => props.$visible ? '0.5rem' : '0'};
   
   @media (max-width: 768px) {
     font-size: 2rem;
@@ -277,11 +278,11 @@ const PageSubtitle = styled.p`
   color: #6b7280;
   margin-bottom: 2rem;
   font-size: 1.125rem;
-  opacity: ${props => props.visible ? 1 : 0};
-  max-height: ${props => props.visible ? '100px' : '0'};
+  opacity: ${props => props.$visible ? 1 : 0};
+  max-height: ${props => props.$visible ? '100px' : '0'};
   overflow: hidden;
   transition: opacity 0.5s ease-in-out 0.1s, max-height 0.5s ease-in-out 0.1s, margin 0.5s ease-in-out 0.1s;
-  margin-bottom: ${props => props.visible ? '2rem' : '0'};
+  margin-bottom: ${props => props.$visible ? '2rem' : '0'};
   
   @media (max-width: 768px) {
     font-size: 1rem;
@@ -289,12 +290,12 @@ const PageSubtitle = styled.p`
 `;
 
 const GridOverlayContainer = styled.div`
-  margin-top: ${props => props.expanded ? '1rem' : '2rem'}; /* Reduce margin when expanded */
+  margin-top: ${props => props.$expanded ? '1rem' : '2rem'}; /* Reduce margin when expanded */
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
-  max-width: ${props => props.expanded ? '90vw' : '100%'};
+  max-width: ${props => props.$expanded ? '90vw' : '100%'};
   flex: 1; /* Allow it to grow within available space */
   min-height: 0; /* Allow it to shrink */
   transition: all 0.6s ease-in-out;
@@ -304,7 +305,7 @@ const ImageWithGrid = styled.div`
   position: relative;
   display: inline-block;
   max-width: 100%;
-  max-height: ${props => props.expanded ? '45vh' : '300px'}; /* More conservative height when expanded */
+  max-height: ${props => props.$expanded ? '45vh' : '300px'}; /* More conservative height when expanded */
   border: 2px solid #4f46e5;
   border-radius: 8px;
   overflow: hidden;
@@ -340,7 +341,7 @@ const GridOverlayOld = styled.div`
 const CropContainer = styled.div`
   position: relative;
   width: 100%;
-  height: ${props => props.expanded ? '45vh' : '400px'};
+  height: ${props => props.$expanded ? '45vh' : '400px'};
   max-width: 100%;
   border: 2px solid #4f46e5;
   border-radius: 8px;
@@ -393,7 +394,7 @@ const ImagePreview = styled.div`
   position: relative;
   display: inline-block;
   max-width: 100%;
-  max-height: ${props => props.expanded ? '45vh' : '300px'};
+  max-height: ${props => props.$expanded ? '45vh' : '300px'};
   border: 2px solid #4f46e5;
   border-radius: 8px;
   overflow: hidden;
@@ -425,8 +426,8 @@ const RecropButton = styled.button`
 `;
 
 const GridInfo = styled.div`
-  margin-top: ${props => props.expanded ? '0.5rem' : '1rem'};
-  padding: ${props => props.expanded ? '0.75rem' : '1rem'};
+  margin-top: ${props => props.$expanded ? '0.5rem' : '1rem'};
+  padding: ${props => props.$expanded ? '0.75rem' : '1rem'};
   background: #f9fafb;
   border-radius: 8px;
   text-align: center;
@@ -435,7 +436,7 @@ const GridInfo = styled.div`
   .grid-stats {
     display: flex;
     justify-content: center;
-    gap: ${props => props.expanded ? '1rem' : '2rem'};
+    gap: ${props => props.$expanded ? '1rem' : '2rem'};
     margin-top: 0.5rem;
     flex-wrap: wrap;
   }
@@ -449,26 +450,70 @@ const GridInfo = styled.div`
   .stat-value {
     font-weight: 600;
     color: #4f46e5;
-    font-size: ${props => props.expanded ? '1rem' : '1.1rem'};
+    font-size: ${props => props.$expanded ? '1rem' : '1.1rem'};
   }
   
   .stat-label {
-    font-size: ${props => props.expanded ? '0.8rem' : '0.875rem'};
+    font-size: ${props => props.$expanded ? '0.8rem' : '0.875rem'};
     color: #6b7280;
   }
 `;
 
 export default function DrawerSetup({ onComplete, initialDimensions, dataManager }) {
   const navigate = useNavigate();
+  const rectifierRef = useRef(null);
   const [unit, setUnit] = useState('mm');
-  const [dimensions, setDimensions] = useState({
+  // Canonical millimeter storage to prevent rounding drift
+  const [baseDimensionsMM, setBaseDimensionsMM] = useState({
     width: initialDimensions?.width || '',
     length: initialDimensions?.length || '',
     height: initialDimensions?.height || ''
   });
+  const formatDisplayVal = (mmVal) => {
+    if (mmVal === '' || mmVal == null || isNaN(parseFloat(mmVal))) return '';
+    const v = parseFloat(mmVal);
+    return unit === 'mm' ? v.toFixed(1) : (v / 25.4).toFixed(1);
+  };
+  const [displayDims, setDisplayDims] = useState({
+    width: formatDisplayVal(baseDimensionsMM.width),
+    length: formatDisplayVal(baseDimensionsMM.length),
+    height: formatDisplayVal(baseDimensionsMM.height)
+  });
+  useEffect(() => {
+    setDisplayDims({
+      width: formatDisplayVal(baseDimensionsMM.width),
+      length: formatDisplayVal(baseDimensionsMM.length),
+      height: formatDisplayVal(baseDimensionsMM.height)
+    });
+  }, [unit, baseDimensionsMM.width, baseDimensionsMM.length, baseDimensionsMM.height]);
+  const handleInputChange = (field, val) => {
+    setDisplayDims(prev => ({ ...prev, [field]: val }));
+  };
+  const handleInputBlur = (field, val) => {
+    if (val === '') {
+      setBaseDimensionsMM(prev => ({ ...prev, [field]: '' }));
+      setDisplayDims(prev => ({ ...prev, [field]: '' }));
+      return;
+    }
+    const n = parseFloat(val);
+    if (isNaN(n)) return;
+    const mmUnclamped = unit === 'mm' ? n : n * 25.4;
+    const limits = field === 'height' ? { min: 20, max: 300 } : { min: 42, max: 1000 };
+    const mm = Math.max(limits.min, Math.min(limits.max, mmUnclamped));
+    setBaseDimensionsMM(prev => ({ ...prev, [field]: mm }));
+    setDisplayDims(prev => ({ ...prev, [field]: formatDisplayVal(mm) }));
+    const prospective = { ...baseDimensionsMM, [field]: mm };
+    if (prospective.width && prospective.length && prospective.height && dataManager) {
+      dataManager.updateDrawerDimensions({
+        width: parseFloat(prospective.width),
+        length: parseFloat(prospective.length),
+        height: parseFloat(prospective.height)
+      });
+    }
+  };
   // Store original uploaded image (client-side)
   const [image, setImage] = useState(dataManager?.appData?.uploadedImage?.url || null);
-  const [originalImage, setOriginalImage] = useState(dataManager?.appData?.uploadedImage?.url || null);
+  const [originalFile, setOriginalFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   // Store transform (corner positions)
   const [transform, setTransform] = useState(dataManager?.appData?.uploadedImage?.transform || null);
@@ -485,7 +530,7 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
   useEffect(() => {
     const handleResize = () => {
       // Trigger re-calculation when viewport orientation changes
-      setDimensions(prev => ({ ...prev }));
+      setBaseDimensionsMM(prev => ({ ...prev }));
     };
 
     window.addEventListener('resize', handleResize);
@@ -497,7 +542,7 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
   useEffect(() => {
     const handleResize = () => {
       setIsPortrait(window.innerHeight > window.innerWidth);
-      setDimensions(prev => ({ ...prev }));
+      setBaseDimensionsMM(prev => ({ ...prev }));
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -507,7 +552,7 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
   console.log('DrawerSetup render - image state:', {
     image: !!image,
     imageLength: image?.length,
-    dimensions: dimensions,
+    baseDimensionsMM,
     uploading,
     transform: !!transform
   });
@@ -523,41 +568,59 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
   // Clear dimensions when dataManager clears data
   useEffect(() => {
     if (!dataManager?.appData?.drawerDimensions) {
-      setDimensions({
-        width: '',
-        length: '',
-        height: ''
-      });
+      setBaseDimensionsMM({ width: '', length: '', height: '' });
     }
   }, [dataManager?.appData?.drawerDimensions]);
 
   // Determine if container should be expanded (both image and dimensions are present)
-  const isExpanded = image && dimensions.width && dimensions.length;
+  const isExpanded = image && baseDimensionsMM.width && baseDimensionsMM.length;
   
   // Show headers only when not expanded
   const showHeaders = !isExpanded;
 
   const handleImageUpload = (e) => {
-    setRotatedImage(null); // Reset any previous rotation
+    setRotatedImage(null);
     const file = e.target.files[0];
     if (file) {
       setUploading(true);
       const reader = new FileReader();
       reader.onload = (event) => {
-        const imageUrl = event.target.result;
-        setImage(imageUrl);
-        setOriginalImage(imageUrl);
-        setCroppedImage(null);
-        setTransform(null);
-        setCornerDeltas(null);
-        setUploading(false);
-        if (dataManager) {
-          dataManager.updateUploadedImage({ url: imageUrl });
-        }
+        const baseUrl = event.target.result;
+        // Auto-rotate image to match viewport orientation (largest dimension alignment)
+        const img = new Image();
+        img.onload = () => {
+          const viewportLandscape = window.innerWidth >= window.innerHeight;
+          const imageLandscape = img.naturalWidth >= img.naturalHeight;
+          let finalUrl = baseUrl;
+          if (viewportLandscape !== imageLandscape) {
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.naturalHeight;
+              canvas.height = img.naturalWidth;
+              const ctx = canvas.getContext('2d');
+              ctx.save();
+              ctx.translate(canvas.width / 2, canvas.height / 2);
+              ctx.rotate(Math.PI / 2);
+              ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+              ctx.restore();
+              finalUrl = canvas.toDataURL('image/jpeg', 0.95);
+            } catch (err) {
+              console.warn('Auto-rotate failed, using original image', err);
+            }
+          }
+          setImage(finalUrl);
+          setOriginalFile(file);
+          setCroppedImage(null);
+          setTransform(null);
+          setCornerDeltas(null);
+          setUploading(false);
+          if (dataManager) {
+            dataManager.updateUploadedImage({ url: finalUrl, fileName: file.name });
+          }
+        };
+        img.src = baseUrl;
       };
-      reader.onerror = () => {
-        setUploading(false);
-      };
+      reader.onerror = () => setUploading(false);
       reader.readAsDataURL(file);
     }
   };
@@ -600,61 +663,200 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
     }
   };
 
-  const handleDimensionChange = (field, value) => {
-    // Only update value, do not enforce min/max here
-    const newDimensions = { ...dimensions, [field]: value };
-    setDimensions(newDimensions);
-    // Update data manager if available and all dimensions are filled
-    if (dataManager && newDimensions.width && newDimensions.length && newDimensions.height) {
-      dataManager.updateDrawerDimensions({
-        width: parseFloat(newDimensions.width),
-        length: parseFloat(newDimensions.length),
-        height: parseFloat(newDimensions.height)
-      });
+  // Helper: client info from UA (lightweight)
+  const getClientInfo = () => {
+    const ua = navigator.userAgent || '';
+    let os = 'unknown', browser = 'unknown', device = 'desktop';
+    if (/Windows/i.test(ua)) os = 'Windows';
+    else if (/Mac OS X/i.test(ua)) os = 'macOS';
+    else if (/Linux/i.test(ua)) os = 'Linux';
+    if (/Chrome\//i.test(ua)) browser = 'Chrome';
+    else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browser = 'Safari';
+    else if (/Firefox\//i.test(ua)) browser = 'Firefox';
+    else if (/Edg\//i.test(ua)) browser = 'Edge';
+    if (/Mobi|Android|iPhone|iPad/i.test(ua)) device = 'mobile';
+    return { device, os, browser };
+  };
+
+  // New: handle completion from PerspectiveGridRectifier
+  const handleRectifierComplete = async (result) => {
+    try {
+      if (!result) return;
+      const { underlayImage: rectUnderlay, rectifiedBlob, quad_px, target_size_px, homography, px_per_mm_after_rect, metrics, exif, orig_size_px } = result;
+
+      // Update local state analogous to legacy cropped image handling
+      setCroppedImage(rectUnderlay);
+      setUnderlayImage(rectUnderlay);
+
+      // Prepare metadata object
+      const rectifyMeta = {
+        quad_px,
+        target_size_px,
+        homography,
+        px_per_mm_after_rect,
+        metrics,
+        exif,
+        orig_size_px,
+        drawer_mm: { width: drawerMM.width, length: drawerMM.length }
+      };
+
+      // Persist in data manager
+      if (dataManager) {
+        dataManager.updateUploadedImage({
+          ...dataManager.appData.uploadedImage,
+          underlay: rectUnderlay,
+          rectifyMeta
+        });
+      }
+
+      // Attempt Supabase uploads + record insert if configured
+      if (SupabaseService.isEnabled()) {
+        // Build sample id and storage keys per spec
+        const now = new Date();
+        const dateFolder = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+          .toISOString().slice(0, 10); // YYYY-MM-DD
+        const rand = Math.random().toString(16).slice(2, 8);
+        const isoStamp = new Date().toISOString().replace(/:/g, '-');
+        const sampleId = `${isoStamp}_${rand}`; // e.g., 2025-08-11T17-12-33Z_4f7a2c
+        const originalKey = `raw/${dateFolder}/${rand}.jpg`;
+        const rectifiedKey = `rectified/${dateFolder}/${rand}.jpg`;
+
+        let rawUpload, rectUpload;
+
+        // Upload raw image file if available
+        if (originalFile) {
+          try {
+            // Convert to JPEG if not already? For now, upload as-is using provided key
+            rawUpload = await SupabaseService.uploadImage(originalKey, originalFile, originalFile.type || 'image/jpeg');
+          } catch (e) { console.warn('Raw upload failed', e); }
+        }
+
+        // Upload rectified image
+        if (rectifiedBlob) {
+            try {
+              rectUpload = await SupabaseService.uploadImage(rectifiedKey, rectifiedBlob, 'image/jpeg');
+            } catch (e) { console.warn('Rectified upload failed', e); }
+        }
+
+        // Insert metadata record
+        try {
+          // Drawer dimensions (mm) from user input
+          const width_mm = parseFloat(baseDimensionsMM.width);
+          const length_mm = parseFloat(baseDimensionsMM.length);
+          const depth_mm = parseFloat(baseDimensionsMM.height);
+          // Quality metrics
+          const quality = { user_confirmed: true, fit_error_px: 0 };
+          const interaction_stats = { drag_events: metrics?.drag_events || 0, ms_adjusting: metrics?.ms_adjusting || 0 };
+          const client = getClientInfo();
+
+          const record = {
+            sample_id: sampleId,
+            image_original_key: originalKey,
+            image_rectified_key: rectifiedKey,
+            orig_size_px,
+            quad_px,
+            target_size_px,
+            drawer_dims_mm: { width_mm, length_mm, depth_mm },
+            px_per_mm_after_rect: { x: px_per_mm_after_rect?.x, y: px_per_mm_after_rect?.y },
+            homography,
+            quality,
+            interaction_stats,
+            client,
+            exif
+          };
+          await SupabaseService.insertRecord(record);
+
+          // Store identifiers locally for continuity
+          if (dataManager) {
+            dataManager.updateUploadedImage({
+              ...dataManager.appData.uploadedImage,
+              rectifyMeta: {
+                ...rectifyMeta,
+                sample_id: sampleId,
+                image_original_key: originalKey,
+                image_rectified_key: rectifiedKey
+              }
+            });
+          }
+        } catch (e) {
+          console.warn('Supabase insert failed', e);
+        }
+      }
+    } catch (err) {
+      console.error('handleRectifierComplete error', err);
     }
   };
 
   const handleSubmit = async () => {
-    // Use the raw user input dimensions, not the viewport-oriented version
-    let rawDimensions;
-    if (unit === 'inches') {
-      rawDimensions = {
-        width: parseFloat(dimensions.width) * 25.4,
-        length: parseFloat(dimensions.length) * 25.4,
-        height: parseFloat(dimensions.height) * 25.4,
-        unit: 'mm',
-      };
-    } else {
-      rawDimensions = {
-        width: parseFloat(dimensions.width),
-        length: parseFloat(dimensions.length),
-        height: parseFloat(dimensions.height),
-        unit: 'mm',
-      };
-    }
-    // Upload original image to Google Drive
-    if (dataManager && originalImage) {
-      setUploading(true);
+    // Single rectification pass (previously was executed twice)
+    let rectifyResult = null;
+    if (rectifierRef.current && image && baseDimensionsMM.width && baseDimensionsMM.length) {
       try {
-        await dataManager.uploadImageToDrive(originalImage);
-      } catch (error) {
-        // Continue anyway with local image
-      } finally {
-        setUploading(false);
+        console.log('[DrawerSetup] Starting rectification before navigation...');
+        const t0 = performance.now();
+        rectifyResult = await rectifierRef.current.rectify();
+        const dt = (performance.now() - t0).toFixed(1);
+        if (rectifyResult?.underlayImage) {
+          console.log('[DrawerSetup] Rectification complete', {
+            ms: dt,
+            dataUrlPrefix: rectifyResult.underlayImage.slice(0, 64),
+            length: rectifyResult.underlayImage.length,
+            target_size_px: rectifyResult.target_size_px,
+            px_per_mm_after_rect: rectifyResult.px_per_mm_after_rect
+          });
+          setUnderlayImage(rectifyResult.underlayImage);
+          setCroppedImage(rectifyResult.underlayImage);
+          if (dataManager) {
+            dataManager.updateUploadedImage({
+              ...(dataManager.appData.uploadedImage || {}),
+              underlay: rectifyResult.underlayImage,
+              rectifyMeta: {
+                quad_px: rectifyResult.quad_px,
+                target_size_px: rectifyResult.target_size_px,
+                homography: rectifyResult.homography,
+                px_per_mm_after_rect: rectifyResult.px_per_mm_after_rect,
+                metrics: rectifyResult.metrics,
+                exif: rectifyResult.exif,
+                orig_size_px: rectifyResult.orig_size_px,
+                drawer_mm: { width: drawerMM.width, length: drawerMM.length }
+              }
+            });
+          }
+        } else {
+          console.warn('[DrawerSetup] Rectification returned no underlayImage');
+        }
+      } catch (e) {
+        console.warn('Rectify on continue failed', e);
       }
+    } else {
+      console.log('[DrawerSetup] Skipping rectification (missing ref or dimensions)');
     }
-    // Save corner deltas to spreadsheet
-    if (dataManager && cornerDeltas) {
-      await dataManager.saveCornerDeltasToSheet(cornerDeltas);
-    }
-    // Pass the raw user dimensions to the layout page
+    // Replaced rawDimensions computation now using baseDimensionsMM
+    const rawDimensions = {
+      width: parseFloat(baseDimensionsMM.width),
+      length: parseFloat(baseDimensionsMM.length),
+      height: parseFloat(baseDimensionsMM.height),
+      unit: 'mm'
+    };
+
+    // Skip Google Drive upload and spreadsheet logging
+
+    // Use the just-produced rectified image if available (avoid re-running heavy process)
+    const finalUnderlay = rectifyResult?.underlayImage || underlayImage || croppedImage || image;
+    console.log('[DrawerSetup] Navigating to /layout with underlay summary', {
+      source: rectifyResult?.underlayImage ? 'rectified' : (underlayImage ? 'state-underlay' : (croppedImage ? 'cropped' : 'original')),
+      length: finalUnderlay?.length,
+      prefix: finalUnderlay?.slice(0, 64)
+    });
     onComplete({
       drawerDimensions: rawDimensions,
-      underlayImage: croppedImage,
+      underlayImage: finalUnderlay,
       transform,
       cornerDeltas
     });
-    navigate('/layout');
+    // Prefer passing underlay via navigation state for immediate availability in Layout
+  const navUnderlay = finalUnderlay;
+  navigate('/layout', { state: { underlayImage: navUnderlay } });
   };
 
   // Rotate image 90 degrees clockwise
@@ -684,116 +886,51 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
     img.src = src;
   };
 
-  const isValid = dimensions.width && dimensions.length && dimensions.height && image;
+  const isValid = baseDimensionsMM.width && baseDimensionsMM.length && baseDimensionsMM.height && image;
 
-  // Only allow submit if the cropped/distorted image is available
-  const canSubmit = isValid && !!croppedImage && !uploading;
-  // Calculate grid dimensions and preview settings with viewport-aware orientation
-  const getDrawerDimensionsInMM = () => {
-    if (!dimensions.width || !dimensions.length) return { width: 0, length: 0 };
-    
-    let width, length;
-    if (unit === 'inches') {
-      width = parseFloat(dimensions.width) * 25.4;
-      length = parseFloat(dimensions.length) * 25.4;
-    } else {
-      width = parseFloat(dimensions.width);
-      length = parseFloat(dimensions.length);
-    }
-    
-    // Determine viewport orientation
-    const isViewportLandscape = window.innerWidth > window.innerHeight;
-    
-    // Arrange dimensions based on viewport orientation
-    if (isViewportLandscape) {
-      // Landscape viewport: put larger dimension on X-axis (width)
-      return {
-        width: Math.max(width, length),
-        length: Math.min(width, length)
-      };
-    } else {
-      // Portrait viewport: put larger dimension on Y-axis (length)
-      return {
-        width: Math.min(width, length),
-        length: Math.max(width, length)
-      };
-    }
+  // Only allow submit if rectified underlay available
+  const handleSubmitClick = () => {
+    if (!isValid) return;
+    // Trigger any additional validation or state updates if necessary
+    handleSubmit();
   };
 
+  // Compute drawer dims in mm and grid sizing for rectifier grid
+  const getDrawerDimensionsInMM = () => {
+    if (!baseDimensionsMM.width || !baseDimensionsMM.length) return { width: 0, length: 0 };
+    return { width: parseFloat(baseDimensionsMM.width), length: parseFloat(baseDimensionsMM.length) };
+  };
   const drawerMM = getDrawerDimensionsInMM();
-  const gridCols = drawerMM.width > 0 ? Math.floor(drawerMM.width / 21) : 0;
-  const gridRows = drawerMM.length > 0 ? Math.floor(drawerMM.length / 21) : 0;
-  
-  // Calculate cell size for display - considering both width and height constraints
-  const maxDisplayWidth = isExpanded ? Math.min(600, window.innerWidth * 0.75) : 400;
-  const maxDisplayHeight = isExpanded ? Math.min(300, window.innerHeight * 0.4) : 300; // Conservative height
-  const aspectRatio = drawerMM.width / drawerMM.length;
-  let displayWidth, displayHeight;
-  
-  if (aspectRatio > 1) {
-    displayWidth = Math.min(maxDisplayWidth, drawerMM.width * (isExpanded ? 0.8 : 0.5));
-    displayHeight = displayWidth / aspectRatio;
-    // Ensure height doesn't exceed our max
-    if (displayHeight > maxDisplayHeight) {
-      displayHeight = maxDisplayHeight;
-      displayWidth = displayHeight * aspectRatio;
-    }
-  } else {
-    displayHeight = Math.min(maxDisplayHeight, drawerMM.length * (isExpanded ? 0.8 : 0.5));
-    displayWidth = displayHeight * aspectRatio;
-    // Ensure width doesn't exceed our max
-    if (displayWidth > maxDisplayWidth) {
-      displayWidth = maxDisplayWidth;
-      displayHeight = displayWidth / aspectRatio;
-    }
-  }
-  
-  const cellSizeX = displayWidth / gridCols;
-  const cellSizeY = displayHeight / gridRows;
+  // Use fractional cell counts so partial cells are drawn at edges
+  const gridCols = drawerMM.width > 0 ? (drawerMM.width / 21) : undefined;
+  const gridRows = drawerMM.length > 0 ? (drawerMM.length / 21) : undefined;
+
+  // Temporary debug preview toggle for rectified underlay
+  const [showUnderlayPreview, setShowUnderlayPreview] = useState(true);
+  // distortionTest tool removed
 
   return (
-    <SetupContainer expanded={isExpanded}>
-      <PageTitle visible={showHeaders}>Setup Your Drawer</PageTitle>
-      <PageSubtitle visible={showHeaders}>Provide dimensions and upload a photo of your drawer.</PageSubtitle>
-
-      <Card expanded={isExpanded}>
-        <UnitToggle>
-          <UnitButton 
-            active={unit === 'mm'} 
-            onClick={() => setUnit('mm')}
-          >
-            Millimeters
-          </UnitButton>
-          <UnitButton 
-            active={unit === 'inches'} 
-            onClick={() => setUnit('inches')}
-          >
-            Inches
-          </UnitButton>
-        </UnitToggle>
-
+  <SetupContainer $expanded={isExpanded}>
+      {showHeaders && (
+        <>
+      <PageTitle $visible={showHeaders}>Setup Your Drawer</PageTitle>
+      <PageSubtitle $visible={showHeaders}>
+            Upload an image of your sketch and set the drawer dimensions.
+          </PageSubtitle>
+        </>
+      )}
+    <Card $expanded={isExpanded}>
+        {/* Drawer dimension inputs row */}
         <InputRow>
           <InputGroup>
             <Label>Width ({unit})</Label>
             <Input
               type="number"
-              value={dimensions.width}
-              onChange={(e) => handleDimensionChange('width', e.target.value)}
-              onBlur={(e) => {
-                let val = parseFloat(e.target.value);
-                if (!isNaN(val)) {
-                  if (unit === 'mm') {
-                    val = Math.max(42, Math.min(1000, val));
-                  } else {
-                    const minInches = 42 / 25.4;
-                    const maxInches = 1000 / 25.4;
-                    val = Math.max(minInches, Math.min(maxInches, val));
-                  }
-                  handleDimensionChange('width', val);
-                }
-              }}
+              value={displayDims.width}
+              onChange={(e) => handleInputChange('width', e.target.value)}
+              onBlur={(e) => handleInputBlur('width', e.target.value)}
               placeholder={unit === 'mm' ? 'e.g. 400' : 'e.g. 15.7'}
-              min={unit === 'mm' ? '21' : '0.83'}
+              min={unit === 'mm' ? '42' : (42/25.4).toFixed(1)}
               step={unit === 'mm' ? '1' : '0.1'}
             />
           </InputGroup>
@@ -802,23 +939,11 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
             <Label>Length ({unit})</Label>
             <Input
               type="number"
-              value={dimensions.length}
-              onChange={(e) => handleDimensionChange('length', e.target.value)}
-              onBlur={(e) => {
-                let val = parseFloat(e.target.value);
-                if (!isNaN(val)) {
-                  if (unit === 'mm') {
-                    val = Math.max(42, Math.min(1000, val));
-                  } else {
-                    const minInches = 42 / 25.4;
-                    const maxInches = 1000 / 25.4;
-                    val = Math.max(minInches, Math.min(maxInches, val));
-                  }
-                  handleDimensionChange('length', val);
-                }
-              }}
+              value={displayDims.length}
+              onChange={(e) => handleInputChange('length', e.target.value)}
+              onBlur={(e) => handleInputBlur('length', e.target.value)}
               placeholder={unit === 'mm' ? 'e.g. 300' : 'e.g. 11.8'}
-              min={unit === 'mm' ? '21' : '0.83'}
+              min={unit === 'mm' ? '42' : (42/25.4).toFixed(1)}
               step={unit === 'mm' ? '1' : '0.1'}
             />
           </InputGroup>
@@ -827,106 +952,171 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
             <Label>Height ({unit})</Label>
             <Input
               type="number"
-              value={dimensions.height}
-              onChange={(e) => handleDimensionChange('height', e.target.value)}
-              onBlur={(e) => {
-                let val = parseFloat(e.target.value);
-                if (!isNaN(val)) {
-                  if (unit === 'mm') {
-                    val = Math.max(20, Math.min(300, val));
-                  } else {
-                    const minInches = 20 / 25.4;
-                    const maxInches = 300 / 25.4;
-                    val = Math.max(minInches, Math.min(maxInches, val));
-                  }
-                  handleDimensionChange('height', val);
-                }
-              }}
+              value={displayDims.height}
+              onChange={(e) => handleInputChange('height', e.target.value)}
+              onBlur={(e) => handleInputBlur('height', e.target.value)}
               placeholder={unit === 'mm' ? 'e.g. 50' : 'e.g. 2.0'}
-              min="0"
+              min={unit === 'mm' ? '20' : (20/25.4).toFixed(1)}
               step={unit === 'mm' ? '1' : '0.1'}
             />
           </InputGroup>
         </InputRow>
 
+        {/* Unit toggle now below the input row */}
+    <UnitToggle>
+          <UnitButton $active={unit === 'mm'} onClick={() => setUnit('mm')}>Millimeters</UnitButton>
+          <UnitButton $active={unit === 'inches'} onClick={() => setUnit('inches')}>Inches</UnitButton>
+        </UnitToggle>
+
         <UploadSection>
-          <UploadLabel htmlFor="image-upload">
-            <span className="desktop-text">{uploading ? 'Uploading...' : 'Upload Photo'}</span>
-            <span className="mobile-text">Upload Photo or Take Picture</span>
+          <UploadLabel>
+            <span className="desktop-text">Upload Image</span>
+            <span className="mobile-text">Upload</span>
+            <HiddenFileInput
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              disabled={uploading}
+            />
           </UploadLabel>
-          <HiddenFileInput
-            id="image-upload"
-            type="file"
-            accept="image/*"
-            capture="environment" /* Use rear camera on mobile */
-            onChange={handleImageUpload}
-          />
+          {uploading && <p>Uploading image...</p>}
         </UploadSection>
-
-        {/* Simple image preview for debugging when dimensions not set */}
-        {image && !dimensions.width && (
-          <div style={{padding: '1rem', border: '1px solid #ccc', margin: '1rem 0', textAlign: 'center'}}>
-            <p>Image uploaded but dimensions not set:</p>
-            <img src={image} alt="Uploaded" style={{maxWidth: '200px', maxHeight: '200px'}} />
-            <p style={{fontSize: '0.9rem', color: '#666'}}>Set drawer dimensions above to enable transform tools</p>
-          </div>
-        )}
-
-        {/* Free Transform Tool Interface */}
-        {image && dimensions.width && dimensions.length && (
-          <div style={{width: '100%', maxWidth: '900px', margin: '1rem auto'}}>
-            <div style={{marginBottom: '1rem', textAlign: 'center'}}>
-              <h3>Position Your Drawer Image</h3>
+        {image && (
+          <div style={{width: '100%', maxWidth: 900, margin: '1rem auto'}}>
+            <div style={{marginBottom: '0.5rem', textAlign: 'center'}}>
+              <h3>Fit the Grid to Your Drawer</h3>
               <p style={{color: '#666', fontSize: '0.9rem', margin: '0.5rem 0'}}>
-                Drag the blue corners to distort your image. The red border shows the final crop area.
+                Drag the blue corners to match your drawer. The red border is the crop.
               </p>
-              <button type="button" style={{margin: '0.5rem 0', padding: '0.5rem 1rem', borderRadius: '6px', border: 'none', background: '#4f46e5', color: 'white', fontWeight: 500, cursor: 'pointer'}} onClick={handleRotateImage}>
-                Rotate Image 90°
-              </button>
+              {(!baseDimensionsMM.width || !baseDimensionsMM.length) && (
+                <p style={{color: '#b45309', fontSize: '0.85rem', margin: 0}}>
+                  Enter drawer width and length to enable rectification sizing.
+                </p>
+              )}
             </div>
-            <FreeTransform
-              image={image}
-              containerWidth={700}
-              containerHeight={Math.round(700 * (drawerMM.length / drawerMM.width))}
-              onTransformChange={handleTransformChange}
+            <PerspectiveGridRectifier
+              ref={rectifierRef}
+              imageSrc={image}
+              imageFile={originalFile}
+              drawerMM={drawerMM}
               gridCols={gridCols}
               gridRows={gridRows}
-              onExportImage={handleExportImage}
+              pxPerMM={15}
+              onComplete={handleRectifierComplete}
             />
-            {/* Grid info */}
-            <div style={{padding: '1rem', background: '#f9f9f9', fontSize: '0.9rem', marginTop: '1rem', borderRadius: '8px'}}>
-              <div style={{fontWeight: 'bold', marginBottom: '0.5rem'}}>Drawer Specifications:</div>
-              <div style={{display: 'flex', gap: '2rem', flexWrap: 'wrap'}}>
-                <div>
-                  <strong>{gridCols} × {gridRows}</strong>
-                  <div style={{fontSize: '0.8rem', color: '#666'}}>21mm Grid Cells</div>
-                </div>
-                <div>
-                  <strong>{(drawerMM.width / 1000).toFixed(2)}m × {(drawerMM.length / 1000).toFixed(2)}m</strong>
-                  <div style={{fontSize: '0.8rem', color: '#666'}}>Actual Size</div>
-                </div>
-                <div>
-                  <strong>{(drawerMM.width * drawerMM.length / 1000000).toFixed(3)}m²</strong>
-                  <div style={{fontSize: '0.8rem', color: '#666'}}>Area</div>
+            {/* Temporary Rectified Image Preview (Debug) */}
+            <div style={{
+              marginTop: '1rem',
+              padding: '0.75rem',
+              border: '2px dashed #3b82f6',
+              borderRadius: 8,
+              background: '#f0f9ff'
+            }}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap'}}>
+                <strong style={{fontSize: '0.9rem'}}>Rectified Preview (debug)</strong>
+                <div style={{display: 'flex', gap: '0.4rem'}}>
+                  <button
+                    type="button"
+                    style={{
+                      fontSize: '0.7rem',
+                      background: '#2563eb',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '0.35rem 0.6rem',
+                      borderRadius: 4,
+                      cursor: 'pointer'
+                    }}
+                    onClick={async () => {
+                      if (!rectifierRef.current) return;
+                      try {
+                        console.log('[DrawerSetup] Manual preview rectification triggered');
+                        const t0 = performance.now();
+                        const res = await rectifierRef.current.rectify();
+                        const dt = (performance.now() - t0).toFixed(1);
+                        if (res?.underlayImage) {
+                          setUnderlayImage(res.underlayImage);
+                          setCroppedImage(res.underlayImage);
+                          if (dataManager) {
+                            dataManager.updateUploadedImage({
+                              ...(dataManager.appData.uploadedImage || {}),
+                              underlay: res.underlayImage,
+                              rectifyMeta: {
+                                quad_px: res.quad_px,
+                                target_size_px: res.target_size_px,
+                                homography: res.homography,
+                                px_per_mm_after_rect: res.px_per_mm_after_rect,
+                                metrics: res.metrics,
+                                exif: res.exif,
+                                orig_size_px: res.orig_size_px,
+                                drawer_mm: { width: drawerMM.width, length: drawerMM.length }
+                              }
+                            });
+                          }
+                          console.log('[DrawerSetup] Manual rectification complete (preview)', { ms: dt, len: res.underlayImage.length, quad_px: res.quad_px, fit_error_px: res.fit_error_px });
+                        } else {
+                          console.warn('[DrawerSetup] Rectification returned null/invalid result');
+                          alert('Preview generation failed. Adjust the corners and try again.');
+                        }
+                      } catch (e) {
+                        console.warn('Manual rectification failed', e);
+                        alert('Preview generation error: ' + (e?.message || e));
+                      }
+                    }}
+                  >Generate Preview</button>
+                  <button
+                    type="button"
+                    style={{
+                      fontSize: '0.7rem',
+                      background: showUnderlayPreview ? '#1e3a8a' : '#64748b',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '0.35rem 0.6rem',
+                      borderRadius: 4,
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => setShowUnderlayPreview(v => !v)}
+                  >{showUnderlayPreview ? 'Hide' : 'Show'}</button>
                 </div>
               </div>
-              <div style={{marginTop: '0.5rem', fontSize: '0.8rem', color: '#666'}}>
-                The grid represents 21mm cells for precise bin placement. Your image will be cropped to the red border area.
-              </div>
+              {showUnderlayPreview && (
+                underlayImage ? (
+                  <>
+                    <div style={{fontSize: '0.65rem', color: '#1e3a8a', marginTop: 4, wordBreak: 'break-all'}}>
+                      data URL length: {underlayImage.length} • prefix: {underlayImage.slice(0,32)}
+                    </div>
+                    <div style={{marginTop: '0.5rem', display: 'flex', justifyContent: 'center'}}>
+                      <img
+                        src={underlayImage}
+                        alt="Rectified Underlay Preview"
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: 300,
+                          objectFit: 'contain',
+                          border: '1px solid #93c5fd',
+                          background: '#fff'
+                        }}
+                      />
+                    </div>
+                    <div style={{fontSize: '0.6rem', color: '#1e40af', marginTop: 6}}>
+                      This image will be passed to the Layout page as the underlay.
+                    </div>
+                  </>
+                ) : (
+                  <div style={{fontSize: '0.7rem', color: '#334155', marginTop: 6}}>
+                    No rectified image yet. Adjust the grid then click "Generate Preview".
+                  </div>
+                )
+              )}
             </div>
           </div>
         )}
-
-        <SubmitButton expanded={isExpanded} onClick={handleSubmit} disabled={!canSubmit}>
-          {uploading ? 'Processing...' : (!underlayImage ? 'Preparing Image...' : 'Continue to Layout')}
+        <SubmitButton
+          $expanded={isExpanded}
+          onClick={handleSubmitClick}
+          disabled={!isValid || uploading}
+        >
+          {uploading ? 'Processing...' : 'Continue to Layout'}
         </SubmitButton>
-
-        {/* Continue to Layout Button - always visible in portrait mode or on mobile */}
-        {(isPortrait || window.innerWidth < 768) && (
-          <SubmitButton expanded={isExpanded} onClick={handleSubmit} disabled={!canSubmit}>
-            {uploading ? 'Processing...' : (!underlayImage ? 'Preparing Image...' : 'Continue to Layout')}
-          </SubmitButton>
-        )}
       </Card>
     </SetupContainer>
   );

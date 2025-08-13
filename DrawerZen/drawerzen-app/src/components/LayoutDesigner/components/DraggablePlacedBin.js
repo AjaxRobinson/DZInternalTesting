@@ -63,9 +63,9 @@ const DraggablePlacedBin = ({
     <PlacedBin
       ref={drag}
       style={style}
-      color={colorwayMap[bin.colorway] || bin.color || '#F5E6C8'}
-      selected={selected}
-      isDragging={isDragging || dragState}
+      $color={colorwayMap[bin.colorway] || bin.color || '#F5E6C8'}
+      $selected={selected}
+      $isDragging={isDragging || dragState}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >

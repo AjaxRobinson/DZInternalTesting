@@ -43,6 +43,14 @@ import Drawer3DView from './components/Drawer3DView';
 import BinOptionsPanel from './components/BinOptionsPanel';
 
 export default function LayoutDesigner({ drawerDimensions, availableBins = [], onLayoutComplete, initialLayout, underlayImage }) {
+  // Debug: log when underlay image prop changes
+  useEffect(() => {
+    if (underlayImage) {
+      console.log('[LayoutDesigner] underlayImage prop len/prefix:', underlayImage.length, underlayImage.slice(0, 48));
+    } else {
+      console.log('[LayoutDesigner] underlayImage prop is null/undefined');
+    }
+  }, [underlayImage]);
   // Undo stack for placedBins and remainingBins
   const [undoStack, setUndoStack] = useState([]);
   const navigate = useNavigate();
@@ -651,9 +659,9 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
           <Drawer3DWrapper>
             <Drawer3DView drawerDimensions={gridDimensions} bins={placedBins} selectedBinId={selectedBin?.id} />
           </Drawer3DWrapper>
-          <BinOptionsAccordion open={!!selectedBin}>
+      <BinOptionsAccordion $open={!!selectedBin}>
             <BinOptionsPanel
-              open={!!selectedBin}
+        open={!!selectedBin}
               bin={selectedBin}
               onSave={handleBinSave}
               onLiveChange={handleBinLiveChange}

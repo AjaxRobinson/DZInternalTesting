@@ -1,4 +1,4 @@
-import React, { forwardRef, useMemo } from 'react';
+import React, { forwardRef, useMemo, useEffect } from 'react';
 import DraggablePlacedBin from './DraggablePlacedBin';
 import { 
   Grid, 
@@ -42,9 +42,9 @@ const BinGrid = forwardRef(({
     return (
       <GridCell 
         key={index} 
-        cellSize={safeCellSize}
-        hasTopEmphasis={hasTopEmphasis}
-        hasLeftEmphasis={hasLeftEmphasis}
+        $cellSize={safeCellSize}
+        $hasTopEmphasis={hasTopEmphasis}
+        $hasLeftEmphasis={hasLeftEmphasis}
       />
     );
   }), [safeGridCols, safeGridRows, safeCellSize]);
@@ -63,11 +63,20 @@ const BinGrid = forwardRef(({
     />
   )), [placedBins, cellSize, selectedBin?.id, draggedBin?.id, onBinClick, onBinDoubleClick, onDragStart, onDragEnd]);
 
+  // Debug: watch underlay changes
+  useEffect(() => {
+    if (underlayImage) {
+      console.log('[BinGrid] applying underlayImage len/prefix:', underlayImage.length, underlayImage.slice(0, 48));
+    } else {
+      console.log('[BinGrid] no underlayImage');
+    }
+  }, [underlayImage]);
+
   return (
     <Grid 
-      cols={safeGridCols} 
-      rows={safeGridRows} 
-      cellSize={safeCellSize}
+      $cols={safeGridCols} 
+      $rows={safeGridRows} 
+      $cellSize={safeCellSize}
       ref={(el) => {
         if (drawingContainerRef) drawingContainerRef.current = el;
         if (ref) ref(el);
@@ -97,11 +106,11 @@ const BinGrid = forwardRef(({
             width: drawingPreview.width,
             height: drawingPreview.height
           }}
-          error={drawingPreview.hasError}
+          $error={drawingPreview.hasError}
         />
       )}
       {/* Drop shadow */}
-      {dropShadow && (
+    {dropShadow && (
         <DropShadow
           style={{
             left: dropShadow.left,
@@ -109,8 +118,8 @@ const BinGrid = forwardRef(({
             width: dropShadow.width,
             height: dropShadow.height
           }}
-          visible={dropShadow.visible}
-          error={dropShadow.error}
+      $visible={dropShadow.visible}
+      $error={dropShadow.error}
         />
       )}
       {/* Placed bins */}

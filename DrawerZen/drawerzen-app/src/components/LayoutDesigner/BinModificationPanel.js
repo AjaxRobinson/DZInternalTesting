@@ -24,23 +24,23 @@ const COLORWAY_OPTIONS = [
 // Styled Components
 const PanelContainer = styled.div`
   width: 100%;
-  height: ${props => props.open ? '100%' : '0px'};
+  height: ${props => props.$open ? '100%' : '0px'};
   background: #fff;
-  box-shadow: ${props => props.open ? '0 2px 12px rgba(0,0,0,0.08)' : 'none'};
+  box-shadow: ${props => props.$open ? '0 2px 12px rgba(0,0,0,0.08)' : 'none'};
   display: flex;
   flex-direction: column;
   transition: height 0.4s cubic-bezier(.4,0,.2,1), opacity 0.3s ease;
-  border: ${props => props.open ? '1px solid #e5e7eb' : 'none'};
+  border: ${props => props.$open ? '1px solid #e5e7eb' : 'none'};
   overflow: hidden;
   border-radius: 12px;
-  opacity: ${props => props.open ? 1 : 0};
+  opacity: ${props => props.$open ? 1 : 0};
 `;
 
 const PanelHeader = styled.div`
   padding: 1.5rem 1.5rem 1rem;
   border-bottom: 1px solid #e5e7eb;
   background: #f9fafb;
-  opacity: ${props => props.open ? 1 : 0};
+  opacity: ${props => props.$open ? 1 : 0};
   transition: opacity 0.3s ease;
 `;
 
@@ -82,7 +82,7 @@ const PanelContent = styled.div`
   flex: 1;
   overflow-y: auto;
   padding: 0;
-  opacity: ${props => props.open ? 1 : 0};
+  opacity: ${props => props.$open ? 1 : 0};
   transition: opacity 0.3s ease;
 `;
 
@@ -158,8 +158,8 @@ const ShadowToggle = styled.label`
   cursor: pointer;
   padding: 1rem;
   border-radius: 8px;
-  border: 2px solid ${props => props.checked ? '#4f46e5' : '#e5e7eb'};
-  background: ${props => props.checked ? '#eef2ff' : '#fff'};
+  border: 2px solid ${props => props.$checked ? '#4f46e5' : '#e5e7eb'};
+  background: ${props => props.$checked ? '#eef2ff' : '#fff'};
   transition: all 0.2s;
   
   &:hover {
@@ -220,7 +220,7 @@ const PanelActions = styled.div`
   background: #f9fafb;
   display: flex;
   gap: 1rem;
-  opacity: ${props => props.open ? 1 : 0};
+  opacity: ${props => props.$open ? 1 : 0};
   transition: opacity 0.3s ease;
 `;
 
@@ -328,7 +328,7 @@ export default function BinModificationPanel({
 
   return (
     <PanelContainer open={open} gridHeight={gridHeight} style={{ flex: open ? '1 1 auto' : '0 0 auto', marginTop: '0.25rem' }}>
-      <PanelHeader open={open}>
+  <PanelHeader $open={open}>
         <BinNameInput
           value={binName}
           onChange={(e) => setBinName(e.target.value)}

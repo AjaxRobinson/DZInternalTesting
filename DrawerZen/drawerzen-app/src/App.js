@@ -77,7 +77,8 @@ function App() {
 function AppContent({ dataManager, defaultBins }) {
   const location = useLocation();
   const isLayoutPage = location.pathname === '/layout';
-  const { appData, updateDrawerDimensions, updateLayoutConfig, updateOrderData } = dataManager;
+  const { appData, updateDrawerDimensions, updateLayoutConfig, updateOrderData, updateUploadedImage } = dataManager;
+  const navUnderlay = location.state?.underlayImage;
 
   return (
     <MainContent className={isLayoutPage ? 'layout-page' : ''}>
@@ -87,7 +88,14 @@ function AppContent({ dataManager, defaultBins }) {
           <Route path="/" element={
             <DrawerSetup 
               onComplete={(data) => {
-                updateDrawerDimensions(data.drawerDimensions);
+                // Persist drawer dimensions
+                if (data?.drawerDimensions) {
+                  updateDrawerDimensions(data.drawerDimensions);
+                }
+                // Persist rectified underlay if provided (ensures availability after navigation/state loss)
+                if (data?.underlayImage) {
+                  updateUploadedImage({ underlay: data.underlayImage });
+                }
               }}
               initialDimensions={appData.drawerDimensions}
               dataManager={dataManager}
@@ -95,21 +103,29 @@ function AppContent({ dataManager, defaultBins }) {
           } />
 
           {/* Step 2: Layout Design */}
-          <Route path="/layout" element={
-            appData.drawerDimensions ? (
-              <LayoutDesigner 
-                drawerDimensions={appData.drawerDimensions}
-                availableBins={[]}
-                onLayoutComplete={(layout) => {
-                  // layout is the object returned by LayoutDesigner
-                  // store only its bins array
-                  updateLayoutConfig(layout?.bins || layout);
-                }}
-                initialLayout={appData.layoutConfig}
-                dataManager={dataManager}
-                underlayImage={appData.uploadedImage?.underlay || appData.uploadedImage?.url}
-              />
-            ) : (
+      <Route path="/layout" element={
+            appData.drawerDimensions ? (() => {
+              const resolvedUnderlay = navUnderlay || appData.uploadedImage?.underlay || appData.uploadedImage?.url;
+              console.log('[App] Rendering /layout with underlay resolution', {
+                hasNavState: !!navUnderlay,
+                hasStoredUnderlay: !!appData.uploadedImage?.underlay,
+                hasOriginalUrl: !!appData.uploadedImage?.url,
+                chosenLength: resolvedUnderlay?.length,
+                chosenPrefix: resolvedUnderlay?.slice(0,64)
+              });
+              return (
+                <LayoutDesigner 
+                  drawerDimensions={appData.drawerDimensions}
+                  availableBins={[]}
+                  onLayoutComplete={(layout) => {
+                    updateLayoutConfig(layout?.bins || layout);
+                  }}
+                  initialLayout={appData.layoutConfig}
+                  dataManager={dataManager}
+                  underlayImage={resolvedUnderlay}
+                />
+              );
+            })() : (
               <Navigate to="/" />
             )
           } />

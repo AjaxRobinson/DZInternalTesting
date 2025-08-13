@@ -223,8 +223,8 @@ export const GridBoundingBox = styled.div`
 
 export const Grid = styled.div`
   display: grid;
-  grid-template-columns: repeat(${props => props.cols}, ${props => props.cellSize}px);
-  grid-template-rows: repeat(${props => props.rows}, ${props => props.cellSize}px);
+  grid-template-columns: repeat(${props => props.$cols}, ${props => props.$cellSize}px);
+  grid-template-rows: repeat(${props => props.$rows}, ${props => props.$cellSize}px);
   gap: 0px;
   background: rgba(226, 232, 240, 0.1); /* Make background more transparent */
   padding: 0px;
@@ -247,8 +247,8 @@ export const Grid = styled.div`
 
 export const GridCell = styled.div`
   background: rgba(248, 250, 252, 0.1); /* Make background more transparent */
-  width: ${props => props.cellSize}px;
-  height: ${props => props.cellSize}px;
+  width: ${props => props.$cellSize}px;
+  height: ${props => props.$cellSize}px;
   position: relative;
   pointer-events: none; /* Don't interfere with drag and drop */
   box-sizing: border-box;
@@ -258,8 +258,8 @@ export const GridCell = styled.div`
   border-bottom: 1px solid rgba(226, 232, 240, 0.3);
   
   /* Emphasis borders every 42mm (every 2 cells) */
-  border-top: ${props => props.hasTopEmphasis ? '2px solid rgba(148, 163, 184, 0.7)' : 'none'};
-  border-left: ${props => props.hasLeftEmphasis ? '2px solid rgba(148, 163, 184, 0.7)' : 'none'};
+  border-top: ${props => props.$hasTopEmphasis ? '2px solid rgba(148, 163, 184, 0.7)' : 'none'};
+  border-left: ${props => props.$hasLeftEmphasis ? '2px solid rgba(148, 163, 184, 0.7)' : 'none'};
   
   &:hover {
     background: rgba(241, 245, 249, 0.2);
@@ -268,7 +268,7 @@ export const GridCell = styled.div`
 
 export const PlacedBin = styled.div`
   position: absolute;
-  background: ${props => props.color || '#3b82f6'};
+  background: ${props => props.$color || '#3b82f6'};
   color: white;
   border-radius: 4px;
   display: flex;
@@ -276,11 +276,11 @@ export const PlacedBin = styled.div`
   justify-content: center;
   font-weight: 600;
   font-size: 0.75rem;
-  cursor: ${props => props.isDragging ? 'grabbing' : 'grab'};
+  cursor: ${props => props.$isDragging ? 'grabbing' : 'grab'};
   transition: all 0.2s;
   z-index: 15;
   border: 2px solid ${props => {
-    const color = props.color || '#3b82f6';
+    const color = props.$color || '#3b82f6';
     // Convert hex to RGB and darken
     const hex = color.replace('#', '');
     const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 40);
@@ -288,16 +288,16 @@ export const PlacedBin = styled.div`
     const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 40);
     return `rgb(${r}, ${g}, ${b})`;
   }};
-  opacity: ${props => props.isDragging ? 0.6 : 1};
-  transform: ${props => props.isDragging ? 'scale(1.05)' : 'scale(1)'};
+  opacity: ${props => props.$isDragging ? 0.6 : 1};
+  transform: ${props => props.$isDragging ? 'scale(1.05)' : 'scale(1)'};
   pointer-events: auto;
   
   &:hover {
-    transform: ${props => props.isDragging ? 'scale(1.05)' : 'scale(1.02)'};
+    transform: ${props => props.$isDragging ? 'scale(1.05)' : 'scale(1.02)'};
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   }
   
-  ${props => props.selected && `
+  ${props => props.$selected && `
     border-color: #fbbf24;
     box-shadow: 0 0 0 2px #fbbf24;
   `}
@@ -368,7 +368,7 @@ export const DrawingPreview = styled.div`
   z-index: 8;
   border-radius: 2px;
   
-  ${props => props.error && `
+  ${props => props.$error && `
     border-color: #ef4444;
     background: rgba(239, 68, 68, 0.1);
   `}
@@ -392,10 +392,10 @@ export const DropShadow = styled.div`
   pointer-events: none;
   z-index: 10;
   border-radius: 4px;
-  opacity: ${props => props.visible ? 1 : 0};
+  opacity: ${props => props.$visible ? 1 : 0};
   transition: opacity 0.2s ease;
   
-  ${props => props.error && `
+  ${props => props.$error && `
     border-color: #ef4444;
     background: rgba(239, 68, 68, 0.15);
   `}
@@ -539,6 +539,6 @@ export const BinOptionsAccordion = styled.div`
   display: flex;
   flex-direction: column;
   transition: opacity 0.35s ease;
-  opacity: ${props => props.open ? 1 : 0};
-  pointer-events: ${props => props.open ? 'auto' : 'none'};
+  opacity: ${props => props.$open ? 1 : 0};
+  pointer-events: ${props => props.$open ? 'auto' : 'none'};
 `;

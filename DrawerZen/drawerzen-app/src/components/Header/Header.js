@@ -38,9 +38,9 @@ const Nav = styled.nav`
 `;
 
 const NavLink = styled(Link)`
-  color: ${props => props.active ? 'var(--blue-accent)' : 'var(--light-text)'};
+  color: ${props => props.$active ? 'var(--blue-accent)' : 'var(--light-text)'};
   text-decoration: none;
-  font-weight: ${props => props.active ? '700' : '500'};
+  font-weight: ${props => props.$active ? '700' : '500'};
   transition: color 0.2s;
   position: relative;
   
@@ -56,7 +56,7 @@ const NavLink = styled(Link)`
     right: 0;
     height: 2px;
     background: var(--blue-accent);
-    transform: ${props => props.active ? 'scaleX(1)' : 'scaleX(0)'};
+    transform: ${props => props.$active ? 'scaleX(1)' : 'scaleX(0)'};
     transition: transform 0.3s ease;
   }
 `;
@@ -107,7 +107,7 @@ export default function Header() {
             <NavLink 
               key={step.path} 
               to={step.path}
-              active={location.pathname === step.path ? 1 : 0}
+              $active={location.pathname === step.path ? 1 : 0}
             >
               {index + 1}. {step.label}
             </NavLink>

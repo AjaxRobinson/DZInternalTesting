@@ -81,7 +81,7 @@ const ColorwayRow = styled.div`
 const ColorwayOption = styled.button`
   flex: 1;
   cursor: pointer;
-  border: 2px solid ${p => p.active ? '#4f46e5' : 'transparent'};
+  border: 2px solid ${p => p.$active ? '#4f46e5' : 'transparent'};
   background: #f9fafb;
   border-radius: 10px;
   padding: 0.5rem 0.4rem 0.6rem;
@@ -92,8 +92,8 @@ const ColorwayOption = styled.button`
   transition: all 0.25s;
   position: relative;
   &:hover { background: #eef2ff; }
-  &:before { content: ''; width: 26px; height: 26px; border-radius: 8px; background: ${p => p.bin}; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.05); }
-  &:after { content: ''; width: 26px; height: 6px; border-radius: 3px; background: ${p => p.bed}; margin-top: -4px; }
+  &:before { content: ''; width: 26px; height: 26px; border-radius: 8px; background: ${p => p.$bin}; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.05); }
+  &:after { content: ''; width: 26px; height: 6px; border-radius: 3px; background: ${p => p.$bed}; margin-top: -4px; }
 `;
 
 const SaveButton = styled.button`
@@ -201,7 +201,7 @@ export default function BinOptionsPanel({ open, bin, onSave, onLiveChange }) {
         <SectionTitle>Colorway</SectionTitle>
         <ColorwayRow>
           {colorwayDefs.map(cw => (
-            <ColorwayOption key={cw.id} bin={cw.bin} bed={cw.bed} active={localColorway === cw.id} 
+            <ColorwayOption key={cw.id} $bin={cw.bin} $bed={cw.bed} $active={localColorway === cw.id} 
               onMouseDown={() => { // set before blur from input fires
                 clearPending();
                 setLocalColorway(cw.id);
