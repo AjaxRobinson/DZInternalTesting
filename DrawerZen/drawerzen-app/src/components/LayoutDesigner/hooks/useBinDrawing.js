@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { GRID_SIZE, BIN_CONSTRAINTS } from '../LayoutDesigner.constants';
 
-export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gridSize) => {
+export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gridSize, pushUndoState) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState(null);
   const [drawEnd, setDrawEnd] = useState(null);
@@ -160,6 +160,10 @@ export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gri
     const isValidSize = validateBinSize(width, length);
     
     if (isValidSize && !hasCollision) {
+      // Capture state before adding new drawn bin
+      if (typeof pushUndoState === 'function') {
+        pushUndoState();
+      }
       const newBin = {
         id: uuidv4(),
         x: binInMm.x,

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import Drawer3DView from '../LayoutDesigner/components/Drawer3DView';
+import SupabaseService from '../../services/SupabaseService';
 
 const CheckoutContainer = styled.div`
   max-width: 1200px;
@@ -275,7 +276,7 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
       // Get the current app data after updating
       const { appData } = dataManager;
       
-      console.log('Submitting order with data:', {
+  console.log('Submitting order with data:', {
         customerInfo: formData,
         drawerDimensions: appData.drawerDimensions,
         layoutConfig: appData.layoutConfig,
@@ -312,7 +313,48 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
       
       console.log('Sending data to Google Apps Script:', orderData);
       
-      // Make direct request to Google Apps Script
+      // Persist to Supabase orders table if configured
+      if (SupabaseService.isEnabled()) {
+        try {
+          const orderRecord = {
+            created_at: new Date().toISOString(),
+            session_id: dataManager.sessionId || 'session_' + Date.now(),
+            customer_email: formData.email,
+            customer_first_name: formData.firstName,
+            customer_last_name: formData.lastName,
+            customer_phone: formData.phone || null,
+            shipping_address: {
+              address: formData.address,
+              apartment: formData.apartment || '',
+              city: formData.city,
+              state: formData.state,
+              zip: formData.zipCode,
+              country: formData.country
+            },
+            drawer_dimensions_mm: appData.drawerDimensions,
+            bins: appData.layoutConfig || [],
+            pricing: {
+              subtotal: appData.orderData?.subtotal || 0,
+              baseplate: appData.orderData?.baseplateCost || 0,
+              discount: appData.orderData?.discount || 0,
+              shipping: appData.orderData?.shipping || 0,
+              total: appData.orderData?.total || 0
+            },
+            source_image: appData.uploadedImage?.url || null,
+            status: 'submitted'
+          };
+          const supaRes = await SupabaseService.insertOrder(orderRecord);
+          if (!supaRes.success) {
+            console.warn('Supabase order insert failed', supaRes.error);
+          } else {
+            console.log('Supabase order inserted', supaRes.data);
+          }
+        } catch (supaErr) {
+          console.warn('Supabase order insert exception', supaErr);
+        }
+      }
+
+      // Make direct request to Google Apps Script (legacy sheet logging)
       const response = await fetch('https://script.google.com/macros/s/AKfycbw-skmmpZkU3Pz988vPjNd7s5bX0O-1Bb5KBmmeGuMOfEGCRm_WF-Fh0lx8Ts6ioEpB/exec', {
         method: 'POST',
         headers: {

@@ -42,7 +42,7 @@ import BinGrid from './components/BinGrid';
 import Drawer3DView from './components/Drawer3DView';
 import BinOptionsPanel from './components/BinOptionsPanel';
 
-export default function LayoutDesigner({ drawerDimensions, availableBins = [], onLayoutComplete, initialLayout, underlayImage }) {
+export default function LayoutDesigner({ drawerDimensions, availableBins = [], onLayoutComplete, initialLayout, underlayImage, dataManager }) {
   // Debug: log when underlay image prop changes
   useEffect(() => {
     if (underlayImage) {
@@ -51,7 +51,7 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
       console.log('[LayoutDesigner] underlayImage prop is null/undefined');
     }
   }, [underlayImage]);
-  // Undo stack for placedBins and remainingBins
+  // Undo stack for placedBins and remainingBins (captures structural & visual changes, not names)
   const [undoStack, setUndoStack] = useState([]);
   const navigate = useNavigate();
   
@@ -149,7 +149,26 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
     calculateGridSize(maxGridWidth, maxGridHeight);
   }, [windowSize, calculateGridSize]);
 
-  // Bin drawing hook
+  // State for remaining bins and errors (moved above undo helpers to allow inclusion in snapshots)
+  const [remainingBins, setRemainingBins] = useState([...availableBins]);
+  const [selectedBinId, setSelectedBinId] = useState(null);
+  const [centerErrorMessage, setCenterErrorMessage] = useState(null);
+
+  // Utility function for center error messages
+  const showCenterError = (message) => {
+    setCenterErrorMessage(message);
+    setTimeout(() => setCenterErrorMessage(null), 3000);
+  };
+
+  // Push current state to undo stack (limit length to avoid unbounded growth)
+  const pushUndoState = () => {
+    setUndoStack(prev => [
+      { placedBins: [...placedBins], remainingBins: [...remainingBins] },
+      ...prev.slice(0, 49) // cap at 50 snapshots
+    ]);
+  };
+
+  // Bin drawing hook (provide callback so drawing additions are undoable)
   const {
     isDrawing,
     drawingPreview,
@@ -160,7 +179,7 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
     handleMouseMove,
     handleMouseUp,
     setErrorMessage
-  } = useBinDrawing(gridCols, gridRows, placedBins, setPlacedBins, GRID_SIZE);
+  } = useBinDrawing(gridCols, gridRows, placedBins, setPlacedBins, GRID_SIZE, () => pushUndoState());
 
   // Drag and drop hook
   const {
@@ -177,36 +196,17 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
     setDropShadow
   } = useDragAndDrop(placedBins, setPlacedBins, gridCols, gridRows, cellPixelSize, checkBounds, checkCollision);
 
-  // State for remaining bins and errors
-  const [remainingBins, setRemainingBins] = useState([...availableBins]);
-  const [selectedBinId, setSelectedBinId] = useState(null);
-  const [centerErrorMessage, setCenterErrorMessage] = useState(null);
-
-  // Utility function for center error messages
-  const showCenterError = (message) => {
-    setCenterErrorMessage(message);
-    setTimeout(() => setCenterErrorMessage(null), 3000);
-  };
-
-  // Push current state to undo stack
-  const pushUndoState = () => {
-    setUndoStack(prev => [
-      {
-        placedBins: [...placedBins],
-        remainingBins: [...remainingBins]
-      },
-      ...prev
-    ]);
-  };
-
-  // Undo handler
+  // Undo handler (preserves any name edits made after snapshot)
   const handleUndo = () => {
     if (undoStack.length === 0) {
       showCenterError('Nothing to undo');
       return;
     }
     const lastState = undoStack[0];
-    setPlacedBins(lastState.placedBins);
+    // Preserve current names (names should not be affected by undo per requirements)
+    const currentNames = new Map(placedBins.map(b => [b.id, b.name]));
+    const restoredBins = lastState.placedBins.map(b => ({ ...b, name: currentNames.get(b.id) ?? b.name }));
+    setPlacedBins(restoredBins);
     setRemainingBins(lastState.remainingBins);
     setUndoStack(undoStack.slice(1));
     setSelectedBin(null);
@@ -322,6 +322,7 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
           const newY = gridY * GRID_SIZE;
           
           if (isValidPlacement({ ...draggedBin, x: newX, y: newY }, item.placedBinId)) {
+            pushUndoState();
             moveBin(item.placedBinId, newX, newY);
           } else {
             showCenterError('Cannot place bin here - overlaps with existing bin or outside bounds');
@@ -343,6 +344,7 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
           };
 
           if (isValidPlacement(newBin)) {
+            pushUndoState();
             addBin(newBin);
             setRemainingBins(prev => prev.filter(bin => bin.id !== item.bin.id));
           } else {
@@ -380,10 +382,13 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
   };
 
   const handleBinSave = (updatedBin) => {
-    pushUndoState();
-    setPlacedBins(prev => prev.map(bin => 
-      bin.id === updatedBin.id ? updatedBin : bin
-    ));
+    // Determine if save affects undoable properties (colorway/color/height or structural)
+    const prevBin = placedBins.find(b => b.id === updatedBin.id);
+    if (prevBin) {
+      const affectsUndo = prevBin.height !== updatedBin.height || prevBin.colorway !== updatedBin.colorway || prevBin.color !== updatedBin.color;
+      if (affectsUndo) pushUndoState();
+    }
+    setPlacedBins(prev => prev.map(bin => bin.id === updatedBin.id ? updatedBin : bin));
     // Collapse panel & deselect after save
     setSelectedBin(null);
     setSelectedBinId(null);
@@ -576,11 +581,43 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
 
   // Live update handler for bin properties
   const handleBinLiveChange = (partialBin) => {
+    const prevBin = placedBins.find(b => b.id === partialBin.id);
+    if (prevBin) {
+      const heightChanged = prevBin.height !== partialBin.height;
+      const colorChanged = prevBin.color !== partialBin.color;
+      const colorwayChanged = prevBin.colorway !== partialBin.colorway;
+      // Only push undo for visual/size changes, never for name-only edits
+      if (heightChanged || colorChanged || colorwayChanged) {
+        pushUndoState();
+      }
+    }
     setPlacedBins(prev => prev.map(b => b.id === partialBin.id ? { ...b, ...partialBin } : b));
     if (selectedBin?.id === partialBin.id) {
       setSelectedBin(partialBin);
     }
   };
+
+  // Auto-save placedBins to global data manager (debounced)
+  const autoSaveTimerRef = useRef(null);
+  const initialLoadRef = useRef(true);
+  useEffect(() => {
+    if (!dataManager || typeof dataManager.updateLayoutConfig !== 'function') return;
+    // Skip the very first effect run right after mount/initial restore
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      return;
+    }
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      try {
+        dataManager.updateLayoutConfig(placedBins);
+        // console.log('[AutoSave] layoutConfig updated with', placedBins.length, 'bins');
+      } catch (e) {
+        console.error('[AutoSave] Failed to save layout', e);
+      }
+    }, 400); // 400ms debounce
+    return () => autoSaveTimerRef.current && clearTimeout(autoSaveTimerRef.current);
+  }, [placedBins, dataManager]);
 
   return (
     <DesignerContainer>
@@ -591,7 +628,7 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
             onReset={handleReset}
             onReview={handleReview}
             onUndo={handleUndo}
-            hasPlacedBins={placedBins.length > 0}
+            hasPlacedBins={placedBins.length > 0 || undoStack.length > 0}
           />
         </LeftColumn>
         <CenterColumn>
