@@ -2,8 +2,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { ORDER_STATUS_LIST, ORDER_STATUSES, normalizeStatus } from '../constants/orderStatuses';
 
-const SUPABASE_URL = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_URL) || '';
-const SUPABASE_ANON_KEY = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_ANON_KEY) || '';
+let SUPABASE_URL = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_URL) || '';
+let SUPABASE_ANON_KEY = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_ANON_KEY) || '';
+// Runtime fallback for static hosting (e.g., GitHub Pages)
+if ((!SUPABASE_URL || !SUPABASE_ANON_KEY) && typeof window !== 'undefined' && window.__SUPABASE_CONFIG__) {
+  SUPABASE_URL = SUPABASE_URL || window.__SUPABASE_CONFIG__.url;
+  SUPABASE_ANON_KEY = SUPABASE_ANON_KEY || window.__SUPABASE_CONFIG__.anonKey;
+}
 const SUPABASE_BUCKET = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_BUCKET) || 'drawerzen';
 const SUPABASE_TABLE = (typeof process !== 'undefined' && process.env && (process.env.REACT_APP_SUPABASE_RECTIFY_TABLE || process.env.REACT_APP_SUPABASE_TABLE)) || 'dataset';
 const SUPABASE_ORDERS_TABLE = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_ORDERS_TABLE) || 'orders';
