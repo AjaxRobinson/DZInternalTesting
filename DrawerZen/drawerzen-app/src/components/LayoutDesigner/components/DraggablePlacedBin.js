@@ -22,7 +22,9 @@ const DraggablePlacedBin = ({
   onClick,
   onDoubleClick,
   onDragStart,
-  onDragEnd
+  onDragEnd,
+  onFocusBin,
+  onBlurBin
 }) => {
   const [{ isDragging: dragState }, drag] = useDrag({
     type: 'placed-bin',
@@ -68,6 +70,9 @@ const DraggablePlacedBin = ({
       $isDragging={isDragging || dragState}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      tabIndex={0}
+      onFocus={() => onFocusBin && onFocusBin(bin)}
+      onBlur={() => onBlurBin && onBlurBin(bin)}
     >
       {/* Internal bed with 2mm wall gap */}
       <div style={bedStyle} />

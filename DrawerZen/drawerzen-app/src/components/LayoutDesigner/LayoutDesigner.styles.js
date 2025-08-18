@@ -277,7 +277,7 @@ export const PlacedBin = styled.div`
   font-weight: 600;
   font-size: 0.75rem;
   cursor: ${props => props.$isDragging ? 'grabbing' : 'grab'};
-  transition: all 0.2s;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, opacity 0.2s ease;
   z-index: 15;
   border: 2px solid ${props => {
     const color = props.$color || '#3b82f6';
@@ -289,17 +289,22 @@ export const PlacedBin = styled.div`
     return `rgb(${r}, ${g}, ${b})`;
   }};
   opacity: ${props => props.$isDragging ? 0.6 : 1};
-  transform: ${props => props.$isDragging ? 'scale(1.05)' : 'scale(1)'};
+  /* Stable lift: selected bins rise slightly and stay elevated; dragging overrides */
+  transform: ${props => {
+    if (props.$isDragging) return 'translateY(-4px) scale(1.05)';
+    if (props.$selected) return 'translateY(-4px) scale(1.02)';
+    return 'translateY(0) scale(1)';
+  }};
   pointer-events: auto;
   
   &:hover {
-    transform: ${props => props.$isDragging ? 'scale(1.05)' : 'scale(1.02)'};
+    transform: ${props => props.$isDragging ? 'translateY(-4px) scale(1.05)' : props.$selected ? 'translateY(-4px) scale(1.03)' : 'translateY(-2px) scale(1.02)'};
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   }
   
   ${props => props.$selected && `
     border-color: #fbbf24;
-    box-shadow: 0 0 0 2px #fbbf24;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25), 0 0 0 2px #fbbf24;
   `}
 `;
 

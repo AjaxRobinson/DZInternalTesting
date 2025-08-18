@@ -6,6 +6,7 @@ const SUPABASE_ANON_KEY = (typeof process !== 'undefined' && process.env && proc
 const SUPABASE_BUCKET = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_BUCKET) || 'drawerzen';
 const SUPABASE_TABLE = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_TABLE) || 'dataset';
 const SUPABASE_ORDERS_TABLE = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_ORDERS_TABLE) || 'orders';
+const SUPABASE_DEBUG = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_DEBUG) || '';
 
 class SupabaseService {
   constructor() {
@@ -24,6 +25,16 @@ class SupabaseService {
     } else {
       this.client = null;
       this.enabled = false;
+      if (typeof window !== 'undefined') {
+        const missing = [];
+        if (!SUPABASE_URL) missing.push('REACT_APP_SUPABASE_URL');
+        if (!SUPABASE_ANON_KEY) missing.push('REACT_APP_SUPABASE_ANON_KEY');
+        // Only log once
+        if (!window.__SUPABASE_DISABLED_LOGGED) {
+          window.__SUPABASE_DISABLED_LOGGED = true;
+          console.warn('[SupabaseService] Disabled. Missing env vars:', missing.join(', ') || 'none');
+        }
+      }
     }
   }
 
@@ -32,8 +43,12 @@ class SupabaseService {
   async uploadImage(path, blob, contentType = 'image/jpeg') {
     if (!this.enabled) return { success: false, error: 'Supabase not configured' };
     const { data, error } = await this.client.storage.from(this.bucket).upload(path, blob, { contentType, upsert: true });
-    if (error) return { success: false, error };
+    if (error) {
+      if (SUPABASE_DEBUG) console.error('[SupabaseService] uploadImage error', { path, error });
+      return { success: false, error };
+    }
     const { data: pub } = this.client.storage.from(this.bucket).getPublicUrl(path);
+    if (SUPABASE_DEBUG) console.debug('[SupabaseService] uploadImage success', { path, publicUrl: pub?.publicUrl });
     return { success: true, data, publicUrl: pub?.publicUrl };
   }
 
@@ -44,10 +59,16 @@ class SupabaseService {
   async insertInto(tableName, record) {
     if (!this.enabled) return { success: false, error: 'Supabase not configured' };
     try {
+      // Wrap in array only if needed – supabase-js accepts object or array
       const { data, error } = await this.client.from(tableName).insert(record).select();
-      if (error) return { success: false, error };
+      if (error) {
+        if (SUPABASE_DEBUG) console.error('[SupabaseService] insert error', { tableName, error, record });
+        return { success: false, error };
+      }
+      if (SUPABASE_DEBUG) console.debug('[SupabaseService] insert success', { tableName, data });
       return { success: true, data };
     } catch (e) {
+      if (SUPABASE_DEBUG) console.error('[SupabaseService] insert exception', { tableName, error: e, record });
       return { success: false, error: e };
     }
   }

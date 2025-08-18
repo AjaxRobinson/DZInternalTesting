@@ -56,12 +56,16 @@ module.exports = (env, argv) => {
         'process.env.REACT_APP_SUPABASE_ANON_KEY': JSON.stringify(process.env.REACT_APP_SUPABASE_ANON_KEY || ''),
         'process.env.REACT_APP_SUPABASE_BUCKET': JSON.stringify(process.env.REACT_APP_SUPABASE_BUCKET || 'drawerzen'),
         'process.env.REACT_APP_SUPABASE_TABLE': JSON.stringify(process.env.REACT_APP_SUPABASE_TABLE || 'dataset'),
+        'process.env.REACT_APP_SUPABASE_ORDERS_TABLE': JSON.stringify(process.env.REACT_APP_SUPABASE_ORDERS_TABLE || 'orders'),
+        'process.env.REACT_APP_SUPABASE_DEBUG': JSON.stringify(process.env.REACT_APP_SUPABASE_DEBUG || ''),
         'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || (isProduction ? 'production' : 'development')),
         process: JSON.stringify({ env: {
           REACT_APP_SUPABASE_URL: process.env.REACT_APP_SUPABASE_URL || '',
           REACT_APP_SUPABASE_ANON_KEY: process.env.REACT_APP_SUPABASE_ANON_KEY || '',
           REACT_APP_SUPABASE_BUCKET: process.env.REACT_APP_SUPABASE_BUCKET || 'drawerzen',
           REACT_APP_SUPABASE_TABLE: process.env.REACT_APP_SUPABASE_TABLE || 'dataset',
+          REACT_APP_SUPABASE_ORDERS_TABLE: process.env.REACT_APP_SUPABASE_ORDERS_TABLE || 'orders',
+          REACT_APP_SUPABASE_DEBUG: process.env.REACT_APP_SUPABASE_DEBUG || '',
           NODE_ENV: process.env.NODE_ENV || (isProduction ? 'production' : 'development')
         }})
       })

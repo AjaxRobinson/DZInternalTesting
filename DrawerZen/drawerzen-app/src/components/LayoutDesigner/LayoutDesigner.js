@@ -97,15 +97,16 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
     });
   }, [gridDimensions, gridCols, gridRows, cellPixelSize, gridBounds]);
 
-  // Restore bins from initialLayout when available
+  // Restore bins from initialLayout only once (avoid feedback loop with autosave causing 3D flicker)
+  const didHydrateRef = useRef(false);
   useEffect(() => {
+    if (didHydrateRef.current) return;
     if (initialLayout && Array.isArray(initialLayout) && initialLayout.length > 0) {
-      // Convert initialLayout bins to placedBins format with positions
       const restoredBins = initialLayout.map(item => ({
-        id: item.id || uuidv4(), // Ensure each bin has an ID
+        id: item.id || uuidv4(),
         originalId: item.originalId || item.id,
-        x: item.x || 0, // Position in millimeters
-        y: item.y || 0, // Position in millimeters
+        x: item.x ?? 0,
+        y: item.y ?? 0,
         width: item.width,
         length: item.length,
         height: item.height || 21,
@@ -114,8 +115,8 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
         color: item.color || colors[0],
         colorway: item.colorway || 'cream'
       }));
-      
       setPlacedBins(restoredBins);
+      didHydrateRef.current = true;
     }
   }, [initialLayout, setPlacedBins]);
 
@@ -153,6 +154,7 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
   const [remainingBins, setRemainingBins] = useState([...availableBins]);
   const [selectedBinId, setSelectedBinId] = useState(null);
   const [centerErrorMessage, setCenterErrorMessage] = useState(null);
+  const [focusedBinId, setFocusedBinId] = useState(null);
 
   // Utility function for center error messages
   const showCenterError = (message) => {
@@ -367,8 +369,9 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
 
   // Bin event handlers
   const handleBinClick = (bin) => {
-    selectBin(bin);
-    setSelectedBinId(bin.id);
+  console.log('[Selection] handleBinClick bin', bin.id, 'current selectedBin?', selectedBin?.id);
+  selectBin(bin);
+  setSelectedBinId(bin.id);
   };
 
   const handleBinDoubleClick = (bin) => {
@@ -680,6 +683,15 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
                         underlayImage={underlayImage}
+                        onFocusBin={(bin) => {
+                          console.log('[Focus] onFocusBin', bin.id, 'prev focused', focusedBinId);
+                          setFocusedBinId(bin.id);
+                        }}
+                        onBlurBin={(bin) => {
+                          console.log('[Focus] onBlurBin', bin.id, 'prev focused', focusedBinId);
+                          // If the blurred bin is currently focused, clear it
+                          setFocusedBinId(prev => prev === bin.id ? null : prev);
+                        }}
                       />
                     </GridBoundingBox>
                   </GridWrapper>
@@ -694,7 +706,7 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
         </CenterColumn>
         <RightColumn>
           <Drawer3DWrapper>
-            <Drawer3DView drawerDimensions={gridDimensions} bins={placedBins} selectedBinId={selectedBin?.id} />
+            <Drawer3DView drawerDimensions={gridDimensions} bins={placedBins} selectedBinId={focusedBinId} />
           </Drawer3DWrapper>
       <BinOptionsAccordion $open={!!selectedBin}>
             <BinOptionsPanel
