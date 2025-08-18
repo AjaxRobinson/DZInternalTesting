@@ -43,6 +43,7 @@ import Drawer3DView from './components/Drawer3DView';
 import BinOptionsPanel from './components/BinOptionsPanel';
 
 export default function LayoutDesigner({ drawerDimensions, availableBins = [], onLayoutComplete, initialLayout, underlayImage, dataManager }) {
+  const DEBUG_LAYOUT = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_DEBUG_LAYOUT === '1');
   // Debug: log when underlay image prop changes
   useEffect(() => {
     if (underlayImage) {
@@ -80,22 +81,24 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
 
   // Update drawer dimensions when props change
   useEffect(() => {
-    console.log('LayoutDesigner - drawerDimensions prop:', drawerDimensions);
-    if (drawerDimensions) {
+    if (!drawerDimensions) return;
+    const same = gridDimensions &&
+      gridDimensions.width === drawerDimensions.width &&
+      gridDimensions.length === drawerDimensions.length &&
+      gridDimensions.height === drawerDimensions.height;
+    if (DEBUG_LAYOUT) {
+      console.log('[LayoutDesigner] drawerDimensions prop received', drawerDimensions, 'same?', same);
+    }
+    if (!same) {
       setDrawerDimensions(drawerDimensions);
     }
-  }, [drawerDimensions, setDrawerDimensions]);
+  }, [drawerDimensions, gridDimensions, setDrawerDimensions, DEBUG_LAYOUT]);
 
   // Debug logging for grid dimensions
   useEffect(() => {
-    console.log('LayoutDesigner - Grid state:', {
-      gridDimensions,
-      gridCols,
-      gridRows,
-      cellPixelSize,
-      gridBounds
-    });
-  }, [gridDimensions, gridCols, gridRows, cellPixelSize, gridBounds]);
+    if (!DEBUG_LAYOUT) return;
+    console.log('[LayoutDesigner] Grid state', { gridDimensions, gridCols, gridRows, cellPixelSize, gridBounds });
+  }, [gridDimensions, gridCols, gridRows, cellPixelSize, gridBounds, DEBUG_LAYOUT]);
 
   // Restore bins from initialLayout only once (avoid feedback loop with autosave causing 3D flicker)
   const didHydrateRef = useRef(false);

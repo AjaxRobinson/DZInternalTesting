@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { GRID_SIZE } from '../LayoutDesigner.constants';
 
 export const useLayoutGrid = (initialDimensions = { width: 420, length: 420 }) => {
@@ -17,12 +17,19 @@ export const useLayoutGrid = (initialDimensions = { width: 420, length: 420 }) =
   const gridCols = Math.floor(drawerDimensions.width / GRID_SIZE);
   const gridRows = Math.floor(drawerDimensions.length / GRID_SIZE);
   
-  console.log('useLayoutGrid - Grid calculation:', {
-    drawerDimensions,
-    GRID_SIZE,
-    gridCols,
-    gridRows
-  });
+  const DEBUG_LAYOUT = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_DEBUG_LAYOUT === '1');
+
+  // Log only when dimension-derived values actually change (and debug enabled)
+  useEffect(() => {
+    if (!DEBUG_LAYOUT) return;
+    console.log('[useLayoutGrid] Grid calc', {
+      width: drawerDimensions.width,
+      length: drawerDimensions.length,
+      GRID_SIZE,
+      gridCols,
+      gridRows
+    });
+  }, [DEBUG_LAYOUT, drawerDimensions.width, drawerDimensions.length, gridCols, gridRows]);
   
   // Calculate aspect ratio based on cell count
   const gridAspectRatio = gridCols / gridRows;

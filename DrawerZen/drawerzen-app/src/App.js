@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { DndProvider } from 'react-dnd';
@@ -48,7 +48,7 @@ function App() {
   const dataManager = useDataManagement();
 
   // Default available bins
-  const defaultBins = [
+  const defaultBins = useMemo(() => ([
     { id: 1, label: 'Small Square', width: 42, length: 42, color: '#3b82f6' },
     { id: 2, label: 'Small Rectangle', width: 63, length: 42, color: '#10b981' },
     { id: 3, label: 'Medium Square', width: 63, length: 63, color: '#f59e0b' },
@@ -57,7 +57,7 @@ function App() {
     { id: 6, label: 'Large Rectangle', width: 105, length: 63, color: '#ec4899' },
     { id: 7, label: 'Wide Rectangle', width: 126, length: 42, color: '#14b8a6' },
     { id: 8, label: 'Extra Large', width: 105, length: 84, color: '#f97316' },
-  ];
+  ]), []);
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -74,11 +74,13 @@ function App() {
   );
 }
 
-function AppContent({ dataManager, defaultBins }) {
+const AppContent = React.memo(function AppContent({ dataManager, defaultBins }) {
   const location = useLocation();
   const isLayoutPage = location.pathname === '/layout';
   const { appData, updateDrawerDimensions, updateLayoutConfig, updateOrderData, updateUploadedImage } = dataManager;
   const navUnderlay = location.state?.underlayImage;
+  const lastLayoutLogRef = useRef(0);
+  const DEBUG_LAYOUT = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_DEBUG_LAYOUT === '1');
 
   return (
     <MainContent className={isLayoutPage ? 'layout-page' : ''}>
@@ -106,13 +108,19 @@ function AppContent({ dataManager, defaultBins }) {
       <Route path="/layout" element={
             appData.drawerDimensions ? (() => {
               const resolvedUnderlay = navUnderlay || appData.uploadedImage?.underlay || appData.uploadedImage?.url;
-              console.log('[App] Rendering /layout with underlay resolution', {
-                hasNavState: !!navUnderlay,
-                hasStoredUnderlay: !!appData.uploadedImage?.underlay,
-                hasOriginalUrl: !!appData.uploadedImage?.url,
-                chosenLength: resolvedUnderlay?.length,
-                chosenPrefix: resolvedUnderlay?.slice(0,64)
-              });
+              if (DEBUG_LAYOUT) {
+                const now = performance.now();
+                if (now - lastLayoutLogRef.current > 500) { // throttle to 2 logs/sec max
+                  lastLayoutLogRef.current = now;
+                  console.log('[App] Rendering /layout with underlay resolution', {
+                    hasNavState: !!navUnderlay,
+                    hasStoredUnderlay: !!appData.uploadedImage?.underlay,
+                    hasOriginalUrl: !!appData.uploadedImage?.url,
+                    chosenLength: resolvedUnderlay?.length,
+                    chosenPrefix: resolvedUnderlay?.slice(0,64)
+                  });
+                }
+              }
               return (
                 <LayoutDesigner 
                   drawerDimensions={appData.drawerDimensions}
@@ -170,6 +178,6 @@ function AppContent({ dataManager, defaultBins }) {
       </ErrorBoundary>
     </MainContent>
   );
-}
+});
 
 export default App;

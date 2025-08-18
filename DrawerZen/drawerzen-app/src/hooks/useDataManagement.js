@@ -40,11 +40,30 @@ export const useDataManagement = () => {
   };
 
   const saveSessionToLocal = (data) => {
+    const basePayload = { sessionId: sessionId || `session_${Date.now()}`, data, timestamp: Date.now() };
+    const tryWrite = (payload) => sessionStorage.setItem('drawerzen_session', JSON.stringify(payload));
     try {
-      const payload = { sessionId: sessionId || `session_${Date.now()}`, data, timestamp: Date.now() };
-      sessionStorage.setItem('drawerzen_session', JSON.stringify(payload));
-      if (!sessionId) setSessionId(payload.sessionId);
-    } catch (e) { console.error('Session save failed', e); }
+      tryWrite(basePayload);
+      if (!sessionId) setSessionId(basePayload.sessionId);
+    } catch (e) {
+      if (e && (e.name === 'QuotaExceededError' || /quota/i.test(e.message || ''))) {
+        // Attempt truncation: remove large base64 images from uploadedImage
+        try {
+          const trimmed = { ...basePayload };
+          if (trimmed.data?.uploadedImage) {
+            const { underlay, url, ...rest } = trimmed.data.uploadedImage;
+            trimmed.data.uploadedImage = { ...rest, truncated: true };
+          }
+          tryWrite(trimmed);
+          console.warn('Session truncated due to quota; large image data not persisted');
+          if (!sessionId) setSessionId(trimmed.sessionId);
+        } catch (e2) {
+          console.error('Session save failed after truncation', e2);
+        }
+      } else {
+        console.error('Session save failed', e);
+      }
+    }
   };
 
   const updateCustomerInfo = useCallback((updates) => {

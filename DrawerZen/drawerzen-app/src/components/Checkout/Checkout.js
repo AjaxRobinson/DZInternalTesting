@@ -103,11 +103,11 @@ const SummaryRow = styled.div`
   display: flex;
   justify-content: space-between;
   margin-bottom: 0.5rem;
-  color: ${props => props.total ? '#1f2937' : '#6b7280'};
-  font-weight: ${props => props.total ? '700' : '400'};
-  font-size: ${props => props.total ? '1.125rem' : '1rem'};
-  padding-top: ${props => props.total ? '1rem' : '0'};
-  border-top: ${props => props.total ? '2px solid #e5e7eb' : 'none'};
+  color: ${props => props.$total ? '#1f2937' : '#6b7280'};
+  font-weight: ${props => props.$total ? '700' : '400'};
+  font-size: ${props => props.$total ? '1.125rem' : '1rem'};
+  padding-top: ${props => props.$total ? '1rem' : '0'};
+  border-top: ${props => props.$total ? '2px solid #e5e7eb' : 'none'};
 `;
 
 const SubmitButton = styled.button`
@@ -284,16 +284,16 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
         imageUrl: appData.uploadedImage?.url
       });
       
-      // Prepare data for Google Sheets
-      const orderData = {
+      // Prepare legacy sheet logging payload (do not shadow variable names)
+      const sheetOrderPayload = {
         action: 'appendOrderLog',
         rowData: [
-          new Date().toISOString(), // timestamp
-          dataManager.sessionId || 'session_' + Date.now(), // session ID
+          new Date().toISOString(),
+          dataManager.sessionId || 'session_' + Date.now(),
           formData.email,
           formData.firstName,
           formData.lastName,
-          formData.phone || '',
+            formData.phone || '',
           formData.address,
           formData.apartment || '',
           formData.city,
@@ -310,47 +310,81 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
           'Submitted'
         ]
       };
+      console.log('Sending data to Google Apps Script:', sheetOrderPayload);
       
-      console.log('Sending data to Google Apps Script:', orderData);
-      
-      // Persist to Supabase orders table if configured
+      // Persist to Supabase orders table using new submitOrder abstraction
       if (SupabaseService.isEnabled()) {
         try {
-          const orderRecord = {
-            created_at: new Date().toISOString(),
-            session_id: dataManager.sessionId || 'session_' + Date.now(),
-            customer_email: formData.email,
-            customer_first_name: formData.firstName,
-            customer_last_name: formData.lastName,
-            customer_phone: formData.phone || null,
-            shipping_address: {
-              address: formData.address,
-              apartment: formData.apartment || '',
-              city: formData.city,
-              state: formData.state,
-              zip: formData.zipCode,
-              country: formData.country
+          const rawBins = Array.isArray(appData.layoutConfig) ? appData.layoutConfig : [];
+          // Build detailed list preserving each bin's true user-defined dimensions
+          const binDetails = rawBins.map((b, idx) => ({
+            type: b.name || `${b.width}x${b.length}x${b.height}`,
+            width: b.width,
+            length: b.length,
+            height: b.height,
+            index: idx
+          }));
+          // Aggregate count for quick summary
+          const orderForSubmit = {
+            bins: {
+              count: rawBins.length,
+              details: binDetails
             },
-            drawer_dimensions_mm: appData.drawerDimensions,
-            bins: appData.layoutConfig || [],
-            pricing: {
-              subtotal: appData.orderData?.subtotal || 0,
-              baseplate: appData.orderData?.baseplateCost || 0,
-              discount: appData.orderData?.discount || 0,
-              shipping: appData.orderData?.shipping || 0,
-              total: appData.orderData?.total || 0
-            },
+            drawer_dimensions_mm: appData.drawerDimensions ? {
+              width: appData.drawerDimensions.width,
+              length: appData.drawerDimensions.length,
+              depth: appData.drawerDimensions.height
+            } : null,
+            pricing: (() => {
+              const pricingObj = {
+                subtotal: appData.orderData?.subtotal || 0,
+                shipping: appData.orderData?.shipping || 0,
+                total: appData.orderData?.total || 0,
+                currency: 'USD'
+              };
+              if (appData.orderData?.baseplateCost != null) pricingObj.baseplate = appData.orderData.baseplateCost;
+              if (appData.orderData?.discount) pricingObj.discount = appData.orderData.discount;
+              return pricingObj;
+            })(),
+            shipping_address: (() => {
+              const addr = {
+                name: `${formData.firstName} ${formData.lastName}`.trim(),
+                street: formData.address,
+                city: formData.city,
+                state: formData.state,
+                zip: formData.zipCode,
+                country: formData.country,
+                phone: formData.phone || undefined
+              };
+              if (formData.apartment) addr.apartment = formData.apartment;
+              return addr;
+            })(),
             source_image: appData.uploadedImage?.url || null,
-            status: 'submitted'
+            status: 'pending',
+            // Cost cent fields (integers) for backend indexing / analytics
+            total_price_cents: (() => {
+              const total = appData.orderData?.total || 0;
+              return Math.round(total * 100);
+            })(),
+            bins_cost_cents: (() => {
+              const subtotal = appData.orderData?.subtotal || 0;
+              const baseplate = appData.orderData?.baseplateCost || 0;
+              return Math.round((subtotal - baseplate) * 100);
+            })(),
+            baseplate_cost_cents: (() => {
+              const baseplate = appData.orderData?.baseplateCost || 0;
+              return Math.round(baseplate * 100);
+            })(),
+            session_id: dataManager.sessionId // allow service to generate if falsy
           };
-          const supaRes = await SupabaseService.insertOrder(orderRecord);
-          if (!supaRes.success) {
-            console.warn('Supabase order insert failed', supaRes.error);
+          const submitRes = await SupabaseService.submitOrder(orderForSubmit);
+          if (!submitRes.success) {
+            console.warn('Supabase submitOrder failed', submitRes.error);
           } else {
-            console.log('Supabase order inserted', supaRes.data);
+            console.log('Supabase submitOrder success', submitRes.data || submitRes.note);
           }
         } catch (supaErr) {
-          console.warn('Supabase order insert exception', supaErr);
+          console.warn('Supabase submitOrder exception', supaErr);
         }
       }
 
@@ -360,7 +394,7 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
         headers: {
           'Content-Type': 'text/plain',
         },
-        body: JSON.stringify(orderData)
+        body: JSON.stringify(sheetOrderPayload)
       });
       
       console.log('Response status:', response.status);
@@ -558,7 +592,7 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
                     <span>-${(orderData.subtotal * orderData.discount / 100).toFixed(2)}</span>
                   </SummaryRow>
                 )}
-                <SummaryRow total>
+                <SummaryRow $total>
                   <span>Total</span>
                   <span>${finalTotal.toFixed(2)}</span>
                 </SummaryRow>

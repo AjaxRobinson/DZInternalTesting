@@ -749,20 +749,25 @@ export default function DrawerSetup({ onComplete, initialDimensions, dataManager
           const interaction_stats = { drag_events: metrics?.drag_events || 0, ms_adjusting: metrics?.ms_adjusting || 0 };
           const client = getClientInfo();
 
+          // Build record to match dataset table schema exactly
           const record = {
-            sample_id: sampleId,
-            image_original_key: originalKey,
-            image_rectified_key: rectifiedKey,
-            orig_size_px,
-            quad_px,
-            target_size_px,
-            drawer_dims_mm: { width_mm, length_mm, depth_mm },
-            px_per_mm_after_rect: { x: px_per_mm_after_rect?.x, y: px_per_mm_after_rect?.y },
-            homography,
-            quality,
-            interaction_stats,
-            client,
-            exif
+            sample_id: sampleId,                               // TEXT
+            image_original_key: originalKey,                   // TEXT
+            image_rectified_key: rectifiedKey,                 // TEXT
+            orig_size_px: orig_size_px || null,                // JSONB
+            quad_px: quad_px || null,                          // JSONB
+            target_size_px: target_size_px || null,            // JSONB
+            drawer_dims_mm: { width_mm, length_mm, depth_mm }, // JSONB
+            px_per_mm_after_rect: px_per_mm_after_rect ? {     // JSONB
+              x: px_per_mm_after_rect.x,
+              y: px_per_mm_after_rect.y
+            } : null,
+            homography: homography || null,                    // JSONB
+            quality,                                           // JSONB
+            interaction_stats,                                 // JSONB
+            client,                                            // JSONB
+            exif: exif || null,                                // JSONB (can be large)
+            created_at: new Date().toISOString()               // TIMESTAMPTZ (optional if DB default exists)
           };
           await SupabaseService.insertRecord(record);
 

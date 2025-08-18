@@ -58,6 +58,11 @@ module.exports = (env, argv) => {
         'process.env.REACT_APP_SUPABASE_TABLE': JSON.stringify(process.env.REACT_APP_SUPABASE_TABLE || 'dataset'),
         'process.env.REACT_APP_SUPABASE_ORDERS_TABLE': JSON.stringify(process.env.REACT_APP_SUPABASE_ORDERS_TABLE || 'orders'),
         'process.env.REACT_APP_SUPABASE_DEBUG': JSON.stringify(process.env.REACT_APP_SUPABASE_DEBUG || ''),
+        'process.env.REACT_APP_DEBUG_LAYOUT': JSON.stringify(process.env.REACT_APP_DEBUG_LAYOUT || ''),
+    'process.env.REACT_APP_SUPABASE_RECTIFY_TABLE': JSON.stringify(process.env.REACT_APP_SUPABASE_RECTIFY_TABLE || process.env.REACT_APP_SUPABASE_TABLE || 'dataset'),
+        'process.env.REACT_APP_ORDER_INITIAL_STATUS': JSON.stringify(process.env.REACT_APP_ORDER_INITIAL_STATUS || ''),
+        'process.env.REACT_APP_ORDER_ALLOWED_STATUSES': JSON.stringify(process.env.REACT_APP_ORDER_ALLOWED_STATUSES || ''),
+  'process.env.REACT_APP_ORDER_REQUIRE_IMAGE': JSON.stringify(process.env.REACT_APP_ORDER_REQUIRE_IMAGE || ''),
         'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || (isProduction ? 'production' : 'development')),
         process: JSON.stringify({ env: {
           REACT_APP_SUPABASE_URL: process.env.REACT_APP_SUPABASE_URL || '',
@@ -66,6 +71,11 @@ module.exports = (env, argv) => {
           REACT_APP_SUPABASE_TABLE: process.env.REACT_APP_SUPABASE_TABLE || 'dataset',
           REACT_APP_SUPABASE_ORDERS_TABLE: process.env.REACT_APP_SUPABASE_ORDERS_TABLE || 'orders',
           REACT_APP_SUPABASE_DEBUG: process.env.REACT_APP_SUPABASE_DEBUG || '',
+          REACT_APP_DEBUG_LAYOUT: process.env.REACT_APP_DEBUG_LAYOUT || '',
+          REACT_APP_SUPABASE_RECTIFY_TABLE: process.env.REACT_APP_SUPABASE_RECTIFY_TABLE || process.env.REACT_APP_SUPABASE_TABLE || 'dataset',
+          REACT_APP_ORDER_INITIAL_STATUS: process.env.REACT_APP_ORDER_INITIAL_STATUS || '',
+          REACT_APP_ORDER_ALLOWED_STATUSES: process.env.REACT_APP_ORDER_ALLOWED_STATUSES || '',
+          REACT_APP_ORDER_REQUIRE_IMAGE: process.env.REACT_APP_ORDER_REQUIRE_IMAGE || '',
           NODE_ENV: process.env.NODE_ENV || (isProduction ? 'production' : 'development')
         }})
       })

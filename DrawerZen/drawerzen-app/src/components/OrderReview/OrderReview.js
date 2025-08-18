@@ -92,7 +92,7 @@ const OrderHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  border-bottom: ${props => props.isCollapsed ? 'none' : '1px solid #e5e7eb'};
+  border-bottom: ${props => props.$isCollapsed ? 'none' : '1px solid #e5e7eb'};
   cursor: pointer;
   user-select: none;
   
@@ -103,7 +103,7 @@ const OrderHeader = styled.div`
   
   .dropdown-arrow {
     transition: transform 0.3s ease;
-    transform: ${props => props.isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)'};
+    transform: ${props => props.$isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)'};
     font-size: 1.2rem;
     color: #6b7280;
   }
@@ -112,13 +112,13 @@ const OrderHeader = styled.div`
 const CollapsibleContent = styled.div`
   overflow: hidden;
   transition: max-height 0.6s ease-in-out, opacity 0.3s ease-in-out;
-  max-height: ${props => props.isCollapsed ? '0' : '2000px'}; /* Large value for expanded state */
-  opacity: ${props => props.isCollapsed ? 0 : 1};
+  max-height: ${props => props.$isCollapsed ? '0' : '2000px'}; /* Large value for expanded state */
+  opacity: ${props => props.$isCollapsed ? 0 : 1};
   display: flex;
   flex-direction: column;
   
   /* Ensure content is hidden when collapsed */
-  ${props => props.isCollapsed && `
+  ${props => props.$isCollapsed && `
     padding: 0;
     margin: 0;
   `}
@@ -425,12 +425,12 @@ export default function OrderReview({ bins = {}, drawerDimensions, onProceedToCh
       </YourDrawerSection>
 
       <OrderSummary>
-        <OrderHeader isCollapsed={isCollapsed} onClick={toggleCollapse}>
+  <OrderHeader $isCollapsed={isCollapsed} onClick={toggleCollapse}>
           <h2>Order Details</h2>
           <span className="dropdown-arrow">▼</span>
         </OrderHeader>
         
-        <CollapsibleContent isCollapsed={isCollapsed}>
+  <CollapsibleContent $isCollapsed={isCollapsed}>
           <BinList>
             {actualPlacedBins.length > 0 ? actualPlacedBins.map((bin, index) => (
               <BinItem key={bin.id || index}>
