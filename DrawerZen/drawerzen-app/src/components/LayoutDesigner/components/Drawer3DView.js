@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 
@@ -45,18 +45,40 @@ export default function Drawer3DView({ drawerDimensions, bins, selectedBinId, wa
 
     // Animation spec: rise 60mm, scale 1.5 when selected, smooth easing
     const lastSelectedRef = useRef(selected);
+    const initializedRef = useRef(false);
+    const lastBaseYRef = useRef(baseY);
+
+    // Ensure baseline updates if bin height changes
+    useEffect(() => {
+      const g = groupRef.current;
+      if (!g) return;
+      // Adjust current position relative to new base if height changed
+      const deltaBase = baseY - lastBaseYRef.current;
+      if (deltaBase !== 0) {
+        g.position.y += deltaBase; // shift by difference to preserve offset
+        lastBaseYRef.current = baseY;
+      }
+    }, [baseY]);
     useFrame((_, delta) => {
       const g = groupRef.current;
       if (!g) return;
+      if (!initializedRef.current) {
+        // Set initial position once (avoid repeated rise reset)
+        g.position.y = selected ? baseY + 60 : baseY;
+        initializedRef.current = true;
+      }
       if (lastSelectedRef.current !== selected) {
-        console.log('[3D] Bin', bin.id, 'selected changed to', selected);
         lastSelectedRef.current = selected;
       }
       const targetY = selected ? baseY + 60 : baseY; // 60mm rise
       const targetScale = selected ? 1.5 : 1; // 50% increase
       const ease = 6; // damping factor
-      // Smooth damp for y
-      g.position.y += (targetY - g.position.y) * Math.min(1, ease * delta);
+      // Smooth damp for y (only if not already effectively there)
+      if (Math.abs(g.position.y - targetY) > 0.1) {
+        g.position.y += (targetY - g.position.y) * Math.min(1, ease * delta);
+      } else {
+        g.position.y = targetY; // snap to final to prevent micro-oscillation
+      }
       const newScale = g.scale.x + (targetScale - g.scale.x) * Math.min(1, ease * delta);
       g.scale.set(newScale, newScale, newScale);
     });
@@ -67,7 +89,8 @@ export default function Drawer3DView({ drawerDimensions, bins, selectedBinId, wa
           <planeGeometry args={[bin.width, bin.length]} />
           <meshPhysicalMaterial color={colorway.bed} roughness={0.9} metalness={0.2} />
         </mesh>
-        <group ref={groupRef} position={[0, baseY, 0]}>
+        {/* Animated bin group (Y & scale animated). Remove static Y prop to avoid reset each render. */}
+        <group ref={groupRef} /* initial Y set in useFrame */>
           <mesh castShadow receiveShadow>
             <boxGeometry args={[bin.width, bin.height, bin.length]} />
             <meshPhysicalMaterial {...binMaterialProps} />

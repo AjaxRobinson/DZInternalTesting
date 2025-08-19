@@ -322,7 +322,8 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
             width: b.width,
             length: b.length,
             height: b.height,
-            index: idx
+            index: idx,
+            color: b.color || null
           }));
           // Aggregate count for quick summary
           const orderForSubmit = {
