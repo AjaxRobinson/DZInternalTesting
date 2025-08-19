@@ -48,6 +48,11 @@ module.exports = (env, argv) => {
             from: 'public/.nojekyll',
             to: '.nojekyll',
             toType: 'file'
+          },
+          {
+            from: 'public/supabase.config.js',
+            to: 'supabase.config.js',
+            toType: 'file'
           }
         ]
       }),
