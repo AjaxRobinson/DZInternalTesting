@@ -1,29 +1,38 @@
 // Supabase client wrapper for uploads + metadata insert
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_URL) || '';
-const SUPABASE_ANON_KEY = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_ANON_KEY) || '';
-const SUPABASE_BUCKET = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_BUCKET) || 'drawerzen';
-const SUPABASE_TABLE = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_TABLE) || 'dataset';
-const SUPABASE_ORDERS_TABLE = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_ORDERS_TABLE) || 'orders';
+const SUPABASE_URL = 'https://dobvwnfsglqzdnsymzsp.supabase.co' || (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_URL)  ;
+const SUPABASE_ANON_KEY ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvYnZ3bmZzZ2xxemRuc3ltenNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5NTQ2MDYsImV4cCI6MjA3MDUzMDYwNn0.5hAAfdqya9ggpIC2cUdCHrruNxEN4TMaMWuR0KhSdqs' || (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_ANON_KEY);
+const SUPABASE_BUCKET = 'drawerzen' || (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_BUCKET)  ;
+const SUPABASE_TABLE = 'rectification_samples' || (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_TABLE);
+const SUPABASE_ORDERS_TABLE = 'orders' || (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_ORDERS_TABLE)  ;
 
 class SupabaseService {
   constructor() {
   this.bucket = SUPABASE_BUCKET;
   this.table = SUPABASE_TABLE; // legacy dataset table for rectification metadata
   this.ordersTable = SUPABASE_ORDERS_TABLE;
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.warn('Missing Supabase URL or Anon Key');
+    this.client = null;
+    this.enabled = false;
+    return;
+  }
     if (SUPABASE_URL && SUPABASE_ANON_KEY) {
       try {
         this.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         this.enabled = true;
+        console.log('DB Connection Success');
       } catch (e) {
         console.warn('Supabase init failed', e);
         this.client = null;
         this.enabled = false;
+
       }
     } else {
       this.client = null;
       this.enabled = false;
+      console.warn('Missing Supabase URL or Anon Key Else Part');
     }
   }
 
@@ -37,7 +46,7 @@ class SupabaseService {
     return { success: true, data, publicUrl: pub?.publicUrl };
   }
 
-  async insertRecord(record) { // backwards compatible (dataset)
+  async insertRecord(record) { 
     return this.insertInto(this.table, record);
   }
 
