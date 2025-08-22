@@ -539,134 +539,183 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
         });
       }
 
-      if (SupabaseService.isEnabled()) {
-        const now = new Date();
-        const dateFolder = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-          .toISOString().slice(0, 10);
-        const rand = Math.random().toString(16).slice(2, 8);
-        const isoStamp = new Date().toISOString().replace(/:/g, '-');
-        const sampleId = `${isoStamp}_${rand}`;
-        const originalKey = `raw/${dateFolder}/${rand}.jpg`;
-        const rectifiedKey = `rectified/${dateFolder}/${rand}.jpg`;
+      // if (SupabaseService.isEnabled()) {
+      //   const now = new Date();
+      //   const dateFolder = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+      //     .toISOString().slice(0, 10);
+      //   const rand = Math.random().toString(16).slice(2, 8);
+      //   const isoStamp = new Date().toISOString().replace(/:/g, '-');
+      //   const sampleId = `${isoStamp}_${rand}`;
+      //   const originalKey = `raw/${dateFolder}/${rand}.jpg`;
+      //   const rectifiedKey = `rectified/${dateFolder}/${rand}.jpg`;
 
-        try {
-          // Upload raw image if available
-          if (originalFile) {
-            await SupabaseService.uploadImage(
-              originalKey, 
-              originalFile, 
-              originalFile.type || 'image/jpeg'
-            );
-          }
+      //   try {
+      //     // Upload raw image if available
+      //     if (originalFile) {
+      //       await SupabaseService.uploadImage(
+      //         originalKey, 
+      //         originalFile, 
+      //         originalFile.type || 'image/jpeg'
+      //       );
+      //     }
 
-          // Upload rectified image
-          if (rectifiedBlob) {
-            await SupabaseService.uploadImage(
-              rectifiedKey, 
-              rectifiedBlob, 
-              'image/jpeg'
-            );
-          }
+      //     // Upload rectified image
+      //     if (rectifiedBlob) {
+      //       await SupabaseService.uploadImage(
+      //         rectifiedKey, 
+      //         rectifiedBlob, 
+      //         'image/jpeg'
+      //       );
+      //     }
 
-          // Insert metadata record
-          const width_mm = parseFloat(baseDimensionsMM.width);
-          const length_mm = parseFloat(baseDimensionsMM.length);
-          const depth_mm = parseFloat(baseDimensionsMM.height);
-          const quality = { user_confirmed: true, fit_error_px: 0 };
-          const interaction_stats = { 
-            drag_events: metrics?.drag_events || 0, 
-            ms_adjusting: metrics?.ms_adjusting || 0 
-          };
-          const client = getClientInfo();
+      //     // Insert metadata record
+      //     const width_mm = parseFloat(baseDimensionsMM.width);
+      //     const length_mm = parseFloat(baseDimensionsMM.length);
+      //     const depth_mm = parseFloat(baseDimensionsMM.height);
+      //     const quality = { user_confirmed: true, fit_error_px: 0 };
+      //     const interaction_stats = { 
+      //       drag_events: metrics?.drag_events || 0, 
+      //       ms_adjusting: metrics?.ms_adjusting || 0 
+      //     };
+      //     const client = getClientInfo();
 
-          await SupabaseService.insertRecord({
-            sample_id: sampleId,
-            image_original_key: originalKey,
-            image_rectified_key: rectifiedKey,
-            orig_size_px,
-            quad_px,
-            target_size_px,
-            drawer_dims_mm: { width_mm, length_mm, depth_mm },
-            px_per_mm_after_rect: { 
-              x: px_per_mm_after_rect?.x, 
-              y: px_per_mm_after_rect?.y 
-            },
-            homography,
-            quality,
-            interaction_stats,
-            client,
-            exif
-          });
+      //     await SupabaseService.insertRecord({
+      //       sample_id: sampleId,
+      //       image_original_key: originalKey,
+      //       image_rectified_key: rectifiedKey,
+      //       orig_size_px,
+      //       quad_px,
+      //       target_size_px,
+      //       drawer_dims_mm: { width_mm, length_mm, depth_mm },
+      //       px_per_mm_after_rect: { 
+      //         x: px_per_mm_after_rect?.x, 
+      //         y: px_per_mm_after_rect?.y 
+      //       },
+      //       homography,
+      //       quality,
+      //       interaction_stats,
+      //       client,
+      //       exif
+      //     });
 
-          if (dataManager) {
-            dataManager.updateUploadedImage({
-              ...dataManager.appData.uploadedImage,
-              rectifyMeta: {
-                ...rectifyMeta,
-                sample_id: sampleId,
-                image_original_key: originalKey,
-                image_rectified_key: rectifiedKey
-              }
-            });
-          }
-        } catch (e) {
-          console.warn('Supabase operation failed', e);
-        }
-      }
+      //     if (dataManager) {
+      //       dataManager.updateUploadedImage({
+      //         ...dataManager.appData.uploadedImage,
+      //         rectifyMeta: {
+      //           ...rectifyMeta,
+      //           sample_id: sampleId,
+      //           image_original_key: originalKey,
+      //           image_rectified_key: rectifiedKey
+      //         }
+      //       });
+      //     }
+      //   } catch (e) {
+      //     console.warn('Supabase operation failed', e);
+      //   }
+      // }
     } catch (err) {
       console.error('Rectification completion error', err);
     }
   }, [dataManager, originalFile, baseDimensionsMM, drawerMM]);
-
   const handleSubmit = useCallback(async () => {
     let rectifyResult = null;
-    
+  
     if (rectifierRef.current && image && baseDimensionsMM.width && baseDimensionsMM.length) {
       try {
-        rectifyResult = await rectifierRef.current.rectify();
-        
-        if (rectifyResult?.underlayImage) {
-          setUnderlayImage(rectifyResult.underlayImage);
-          setCroppedImage(rectifyResult.underlayImage);
-          
-          if (dataManager) {
-            dataManager.updateUploadedImage({
-              ...(dataManager.appData.uploadedImage || {}),
-              underlay: rectifyResult.underlayImage,
-              rectifyMeta: {
-                quad_px: rectifyResult.quad_px,
-                target_size_px: rectifyResult.target_size_px,
-                homography: rectifyResult.homography,
-                px_per_mm_after_rect: rectifyResult.px_per_mm_after_rect,
-                metrics: rectifyResult.metrics,
-                exif: rectifyResult.exif,
-                orig_size_px: rectifyResult.orig_size_px,
-                drawer_mm: { width: drawerMM.width, length: drawerMM.length }
-              }
-            });
-          }
-        }
+        rectifyResult = await rectifierRef.current.rectify(); // This updates UI but doesn't insert
       } catch (e) {
         console.warn('Rectification failed', e);
       }
     }
-
+  
     const rawDimensions = {
       width: parseFloat(baseDimensionsMM.width),
       length: parseFloat(baseDimensionsMM.length),
       height: parseFloat(baseDimensionsMM.height),
       unit: 'mm'
     };
-
+  
     const finalUnderlay = rectifyResult?.underlayImage || underlayImage || croppedImage || image;
-    
+  
+    // ✅ Finalize and save to Supabase only here
+    if (SupabaseService.isEnabled() && rectifyResult) {
+      const { rectifiedBlob, quad_px, target_size_px, homography, px_per_mm_after_rect, metrics, exif, orig_size_px } = rectifyResult;
+  
+      const now = new Date();
+      const dateFolder = now.toISOString().slice(0, 10);
+      const rand = Math.random().toString(16).slice(2, 8);
+      const isoStamp = new Date().toISOString().replace(/:/g, '-');
+      const sampleId = `${isoStamp}_${rand}`;
+      const originalKey = `raw/${dateFolder}/${rand}.jpg`;
+      const rectifiedKey = `rectified/${dateFolder}/${rand}.jpg`;
+  
+      try {
+        // Upload raw image
+        if (originalFile) {
+          await SupabaseService.uploadImage(originalKey, originalFile);
+        }
+  
+        // Upload rectified image
+        if (rectifiedBlob) {
+          await SupabaseService.uploadImage(rectifiedKey, rectifiedBlob, 'image/jpeg');
+        }
+  
+        // Insert record
+        const quality = { user_confirmed: true, fit_error_px: 0 };
+        const interaction_stats = { 
+          drag_events: metrics?.drag_events || 0, 
+          ms_adjusting: metrics?.ms_adjusting || 0 
+        };
+        const client = getClientInfo();
+  
+        await SupabaseService.insertRecord({
+          sample_id: sampleId,
+          image_original_key: originalKey,
+          image_rectified_key: rectifiedKey,
+          orig_size_px,
+          quad_px,
+          target_size_px,
+          drawer_dims_mm: {
+            width_mm: rawDimensions.width,
+            length_mm: rawDimensions.length,
+            depth_mm: rawDimensions.height
+          },
+          px_per_mm_after_rect: { 
+            x: px_per_mm_after_rect?.x, 
+            y: px_per_mm_after_rect?.y 
+          },
+          homography,
+          quality,
+          interaction_stats,
+          client,
+          exif
+        });
+  
+        // Save sample ID to dataManager
+        if (dataManager) {
+          dataManager.updateUploadedImage({
+            ...(dataManager.appData.uploadedImage || {}),
+            rectifyMeta: {
+              ...(dataManager.appData.uploadedImage?.rectifyMeta || {}),
+              sample_id: sampleId,
+              image_original_key: originalKey,
+              image_rectified_key: rectifiedKey
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Supabase operation failed', e);
+      }
+    }
+  
+    // Finalize navigation
     onComplete({
       drawerDimensions: rawDimensions,
       underlayImage: finalUnderlay,
       transform,
       cornerDeltas
     });
-    
+  
     navigate('/layout', { state: { underlayImage: finalUnderlay } });
   }, [
     image, 
@@ -678,8 +727,72 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
     transform, 
     cornerDeltas, 
     onComplete, 
-    navigate
+    navigate,
+    originalFile,
+    getClientInfo
   ]);
+  // const handleSubmit = useCallback(async () => {
+  //   let rectifyResult = null;
+    
+  //   if (rectifierRef.current && image && baseDimensionsMM.width && baseDimensionsMM.length) {
+  //     try {
+  //       rectifyResult = await rectifierRef.current.rectify();
+        
+  //       if (rectifyResult?.underlayImage) {
+  //         setUnderlayImage(rectifyResult.underlayImage);
+  //         setCroppedImage(rectifyResult.underlayImage);
+          
+  //         if (dataManager) {
+  //           dataManager.updateUploadedImage({
+  //             ...(dataManager.appData.uploadedImage || {}),
+  //             underlay: rectifyResult.underlayImage,
+  //             rectifyMeta: {
+  //               quad_px: rectifyResult.quad_px,
+  //               target_size_px: rectifyResult.target_size_px,
+  //               homography: rectifyResult.homography,
+  //               px_per_mm_after_rect: rectifyResult.px_per_mm_after_rect,
+  //               metrics: rectifyResult.metrics,
+  //               exif: rectifyResult.exif,
+  //               orig_size_px: rectifyResult.orig_size_px,
+  //               drawer_mm: { width: drawerMM.width, length: drawerMM.length }
+  //             }
+  //           });
+  //         }
+  //       }
+  //     } catch (e) {
+  //       console.warn('Rectification failed', e);
+  //     }
+  //   }
+
+  //   const rawDimensions = {
+  //     width: parseFloat(baseDimensionsMM.width),
+  //     length: parseFloat(baseDimensionsMM.length),
+  //     height: parseFloat(baseDimensionsMM.height),
+  //     unit: 'mm'
+  //   };
+
+  //   const finalUnderlay = rectifyResult?.underlayImage || underlayImage || croppedImage || image;
+    
+  //   onComplete({
+  //     drawerDimensions: rawDimensions,
+  //     underlayImage: finalUnderlay,
+  //     transform,
+  //     cornerDeltas
+  //   });
+    
+  //   navigate('/layout', { state: { underlayImage: finalUnderlay } });
+  // }, [
+  //   image, 
+  //   baseDimensionsMM, 
+  //   dataManager, 
+  //   drawerMM, 
+  //   underlayImage, 
+  //   croppedImage, 
+  //   transform, 
+  //   cornerDeltas, 
+  //   onComplete, 
+  //   navigate
+  // ]);
 
   const handleRotateImage = useCallback(() => {
     const src = rotatedImage || image;

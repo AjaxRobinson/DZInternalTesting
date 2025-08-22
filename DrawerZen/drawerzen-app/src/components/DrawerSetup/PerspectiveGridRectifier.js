@@ -511,18 +511,18 @@ const PerspectiveGridRectifier = forwardRef(function PerspectiveGridRectifier({
         projective_strength: projMag
       }));
     } catch {}
-    console.log('[DZ] Rectified underlay generated', {
-      size_px: [targetW, targetH],
-      usedDrawerDims: hasDrawerDims,
-      px_per_mm: pxPerMMActual,
-      quad_px,
-      srcPts,
-      quad_area_px2: Number(quadArea.toFixed(2)),
-      fit_error_px: Number((fit_error_px||0).toFixed(3)),
-      data_url_prefix: underlayImage?.slice(0, 32),
-      projective_strength: projMag,
-      h31: h31n, h32: h32n
-    });
+    // console.log('[DZ] Rectified underlay generated', {
+    //   size_px: [targetW, targetH],
+    //   usedDrawerDims: hasDrawerDims,
+    //   px_per_mm: pxPerMMActual,
+    //   quad_px,
+    //   srcPts,
+    //   quad_area_px2: Number(quadArea.toFixed(2)),
+    //   fit_error_px: Number((fit_error_px||0).toFixed(3)),
+    //   data_url_prefix: underlayImage?.slice(0, 32),
+    //   projective_strength: projMag,
+    //   h31: h31n, h32: h32n
+    // });
     onComplete && onComplete(payload);
     return payload;
   };

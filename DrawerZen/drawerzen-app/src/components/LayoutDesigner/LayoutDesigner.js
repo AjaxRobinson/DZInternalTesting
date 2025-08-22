@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDrop } from 'react-dnd';
 import { v4 as uuidv4 } from 'uuid';
 
+// Import Supabase Service
+import SupabaseService from '../../services/SupabaseService'; 
 // Modular imports
 import { GRID_SIZE, STANDARD_BIN_SIZES, colors } from './LayoutDesigner.constants';
 import { calculatePrice, calculateBinPrice, calculateBaseplateCost } from './LayoutDesigner.utils';
@@ -42,84 +44,55 @@ import BinGrid from './components/BinGrid';
 import Drawer3DView from './components/Drawer3DView';
 import BinOptionsPanel from './components/BinOptionsPanel';
 
-export default function LayoutDesigner({ drawerDimensions, availableBins = [], onLayoutComplete, initialLayout, underlayImage, dataManager }) {
-  // Debug: log when underlay image prop changes
-  useEffect(() => {
-    if (underlayImage) {
-      console.log('[LayoutDesigner] underlayImage prop len/prefix:', underlayImage.length, underlayImage.slice(0, 48));
-    } else {
-      console.log('[LayoutDesigner] underlayImage prop is null/undefined');
-    }
-  }, [underlayImage]);
-  // Undo stack for placedBins and remainingBins (captures structural & visual changes, not names)
-  const [undoStack, setUndoStack] = useState([]);
+export default function LayoutDesigner({ 
+  drawerDimensions, 
+  availableBins = [], 
+  onLayoutComplete, 
+  initialLayout, 
+  underlayImage, 
+  dataManager,
+  projectId // Add this new prop for Supabase project identification
+}) {
   const navigate = useNavigate();
-  
-  // Window size state for responsive grid
+  const [undoStack, setUndoStack] = useState([]);
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight
   });
+  const [selectedBinId, setSelectedBinId] = useState(null);
+  const [centerErrorMessage, setCenterErrorMessage] = useState(null);
+  const [remainingBins, setRemainingBins] = useState(() => [...availableBins]);
+  const [isSaving, setIsSaving] = useState(false); // Add saving state
 
-  // Layout grid hook
+  // Create stable drawer config
+  const drawerConfig = useMemo(() => {
+    if (!drawerDimensions) return { width: 320, length: 320, maxWidth: 320, maxLength: 320 };
+    return {
+      ...drawerDimensions,
+      maxWidth: 320,
+      maxLength: 320
+    };
+  }, [drawerDimensions?.width, drawerDimensions?.length]);
+
+  // Layout grid hook with stable config
   const {
     drawerDimensions: gridDimensions,
     setDrawerDimensions,
     cellPixelSize,
-    setCellPixelSize,
     gridBounds,
     gridCols,
     gridRows,
-    gridAspectRatio,
     calculateGridSize
-  } = useLayoutGrid({
-    ...drawerDimensions,
-    maxWidth: 320,
-    maxLength: 320
-  });
+  } = useLayoutGrid(drawerConfig);
 
   // Update drawer dimensions when props change
   useEffect(() => {
-    console.log('LayoutDesigner - drawerDimensions prop:', drawerDimensions);
     if (drawerDimensions) {
       setDrawerDimensions(drawerDimensions);
     }
-  }, [drawerDimensions, setDrawerDimensions]);
+  }, [drawerDimensions?.width, drawerDimensions?.length]);
 
-  // Debug logging for grid dimensions
-  useEffect(() => {
-    console.log('LayoutDesigner - Grid state:', {
-      gridDimensions,
-      gridCols,
-      gridRows,
-      cellPixelSize,
-      gridBounds
-    });
-  }, [gridDimensions, gridCols, gridRows, cellPixelSize, gridBounds]);
-
-  // Restore bins from initialLayout when available
-  useEffect(() => {
-    if (initialLayout && Array.isArray(initialLayout) && initialLayout.length > 0) {
-      // Convert initialLayout bins to placedBins format with positions
-      const restoredBins = initialLayout.map(item => ({
-        id: item.id || uuidv4(), // Ensure each bin has an ID
-        originalId: item.originalId || item.id,
-        x: item.x || 0, // Position in millimeters
-        y: item.y || 0, // Position in millimeters
-        width: item.width,
-        length: item.length,
-        height: item.height || 21,
-        shadowBoard: item.shadowBoard || false,
-        name: item.name || `Bin ${item.id}`,
-        color: item.color || colors[0],
-        colorway: item.colorway || 'cream'
-      }));
-      
-      setPlacedBins(restoredBins);
-    }
-  }, [initialLayout, setPlacedBins]);
-
-  // Bin management hook
+  // Bin management hook with size limits (1-15 units)
   const {
     placedBins,
     setPlacedBins,
@@ -135,40 +108,171 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
     isValidPlacement
   } = useBinManagement(gridCols, gridRows);
 
+  // Restore bins from initialLayout when available
+  useEffect(() => {
+    if (initialLayout && Array.isArray(initialLayout) && initialLayout.length > 0) {
+      const restoredBins = initialLayout.map(item => ({
+        id: item.id || uuidv4(),
+        originalId: item.originalId || item.id,
+        x: item.x || 0,
+        y: item.y || 0,
+        width: item.width,
+        length: item.length,
+        height: item.height || 21,
+        shadowBoard: item.shadowBoard || false,
+        name: item.name || `Bin ${item.id}`,
+        color: item.color || colors[0],
+        colorway: item.colorway || 'cream'
+      }));
+      
+      setPlacedBins(restoredBins);
+    }
+  }, [JSON.stringify(initialLayout || [])]);
+
+  // Update remaining bins when available bins change
+  useEffect(() => {
+    const availableBinsString = JSON.stringify(availableBins.map(b => ({id: b.id, width: b.width, length: b.length})).sort());
+    const remainingBinsString = JSON.stringify(remainingBins.map(b => ({id: b.id, width: b.width, length: b.length})).sort());
+    
+    if (availableBinsString !== remainingBinsString) {
+      setRemainingBins([...availableBins]);
+    }
+  }, [JSON.stringify(availableBins.map(b => ({id: b.id, width: b.width, length: b.length})).sort())]);
+
   // Calculate responsive cell size
   useEffect(() => {
-    // Removed dynamic panelWidth influence so grid remains static when selecting a bin
     const buttonWidth = 160;
     const isMobile = windowSize.width < 768;
     const gutterWidth = isMobile ? 32 : 80;
     const containerPadding = isMobile ? 32 : 64;
 
     const maxGridWidth = windowSize.width - gutterWidth - containerPadding - buttonWidth;
-    const maxGridHeight = (windowSize.height - 80) * 0.65; // Use 65% of remaining viewport height for grid area after nav
+    const maxGridHeight = (windowSize.height - 80) * 0.65;
 
     calculateGridSize(maxGridWidth, maxGridHeight);
-  }, [windowSize, calculateGridSize]);
+  }, [windowSize.width, windowSize.height]);
 
-  // State for remaining bins and errors (moved above undo helpers to allow inclusion in snapshots)
-  const [remainingBins, setRemainingBins] = useState([...availableBins]);
-  const [selectedBinId, setSelectedBinId] = useState(null);
-  const [centerErrorMessage, setCenterErrorMessage] = useState(null);
-
-  // Utility function for center error messages
-  const showCenterError = (message) => {
+  // Utility functions
+  const showCenterError = useCallback((message) => {
     setCenterErrorMessage(message);
-    setTimeout(() => setCenterErrorMessage(null), 3000);
-  };
+    requestAnimationFrame(() => {
+      setTimeout(() => setCenterErrorMessage(null), 3000);
+    });
+  }, []);
 
-  // Push current state to undo stack (limit length to avoid unbounded growth)
-  const pushUndoState = () => {
+  const pushUndoState = useCallback(() => {
     setUndoStack(prev => [
       { placedBins: [...placedBins], remainingBins: [...remainingBins] },
-      ...prev.slice(0, 49) // cap at 50 snapshots
+      ...prev.slice(0, 49)
     ]);
-  };
+  }, [JSON.stringify(placedBins), JSON.stringify(remainingBins)]);
 
-  // Bin drawing hook (provide callback so drawing additions are undoable)
+  // Undo handler
+  const handleUndo = useCallback(() => {
+    if (undoStack.length === 0) {
+      showCenterError('Nothing to undo');
+      return;
+    }
+    const lastState = undoStack[0];
+    const currentNames = new Map(placedBins.map(b => [b.id, b.name]));
+    const restoredBins = lastState.placedBins.map(b => ({ ...b, name: currentNames.get(b.id) ?? b.name }));
+    setPlacedBins(restoredBins);
+    setRemainingBins(lastState.remainingBins);
+    setUndoStack(prev => prev.slice(1));
+    setSelectedBin(null);
+    setSelectedBinId(null);
+  }, [undoStack, JSON.stringify(placedBins), setPlacedBins, setSelectedBin]);
+
+  // Manual save to Supabase function
+  const handleSaveToSupabase = useCallback(async () => {
+    if (!projectId) {
+      showCenterError('Project ID is required to save bins');
+      return;
+    }
+
+    if (!SupabaseService.isEnabled()) {
+      showCenterError('Supabase service is not configured');
+      return;
+    }
+
+    if (placedBins.length === 0) {
+      showCenterError('No bins to save');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const result = await SupabaseService.saveBins(projectId, placedBins);
+      
+      if (result.success) {
+        showCenterError(`✅ Saved ${placedBins.length} bins to database!`);
+      } else {
+        showCenterError(`❌ Failed to save bins: ${result.error?.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Save to Supabase error:', error);
+      showCenterError(`❌ Error saving bins: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [projectId, placedBins, showCenterError]);
+
+  // Auto-save to Supabase when bins change (debounced)
+  const lastSavedLayoutRef = useRef(JSON.stringify(placedBins));
+const saveTimeoutRef = useRef(null);
+const saveInProgressRef = useRef(false);
+
+useEffect(() => {
+  if (!projectId || !SupabaseService.isEnabled()) return;
+  
+  const currentLayoutString = JSON.stringify(placedBins);
+  
+  // Clear previous timeout
+  if (saveTimeoutRef.current) {
+    clearTimeout(saveTimeoutRef.current);
+  }
+
+  // Only save if layout actually changed and no save is in progress
+  if (lastSavedLayoutRef.current !== currentLayoutString && !saveInProgressRef.current) {
+    // Debounce the save operation
+    saveTimeoutRef.current = setTimeout(async () => {
+      if (saveInProgressRef.current) return; // Prevent concurrent saves
+      
+      saveInProgressRef.current = true;
+      try {
+        console.log('[AutoSave] Starting save operation...');
+        
+        // Save to local data manager first
+        if (dataManager && typeof dataManager.updateLayoutConfig === 'function') {
+          dataManager.updateLayoutConfig(placedBins);
+        }
+        
+        // Save to Supabase
+        const result = await SupabaseService.saveBins(projectId, placedBins);
+        
+        if (result.success) {
+          console.log(`[AutoSave] ✅ ${placedBins.length} bins saved successfully`);
+          lastSavedLayoutRef.current = currentLayoutString;
+        } else {
+          console.error('[AutoSave] ❌ Failed to save bins:', result.error);
+        }
+      } catch (error) {
+        console.error('[AutoSave] ❌ Error saving bins:', error);
+      } finally {
+        saveInProgressRef.current = false;
+      }
+    }, 2000); // 2 second debounce
+  }
+
+  // Cleanup timeout on unmount
+  return () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+  };
+}, [JSON.stringify(placedBins), projectId, dataManager]);
+
+  // Bin drawing hook
   const {
     isDrawing,
     drawingPreview,
@@ -179,52 +283,29 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
     handleMouseMove,
     handleMouseUp,
     setErrorMessage
-  } = useBinDrawing(gridCols, gridRows, placedBins, setPlacedBins, GRID_SIZE, () => pushUndoState());
+  } = useBinDrawing(gridCols, gridRows, placedBins, setPlacedBins, GRID_SIZE, pushUndoState);
 
-  // Drag and drop hook
+  // Drag and drop hook with proper hover handling
   const {
     draggedBin,
     dropShadow,
-    isCarouselDropTarget,
     handleDragStart,
     handleDragEnd,
     handleGridHover,
     handleGridDrop,
-    handleCarouselDrop,
     handleCarouselDragOver,
-    handleCarouselDragLeave,
     setDropShadow
   } = useDragAndDrop(placedBins, setPlacedBins, gridCols, gridRows, cellPixelSize, checkBounds, checkCollision);
 
-  // Undo handler (preserves any name edits made after snapshot)
-  const handleUndo = () => {
-    if (undoStack.length === 0) {
-      showCenterError('Nothing to undo');
-      return;
-    }
-    const lastState = undoStack[0];
-    // Preserve current names (names should not be affected by undo per requirements)
-    const currentNames = new Map(placedBins.map(b => [b.id, b.name]));
-    const restoredBins = lastState.placedBins.map(b => ({ ...b, name: currentNames.get(b.id) ?? b.name }));
-    setPlacedBins(restoredBins);
-    setRemainingBins(lastState.remainingBins);
-    setUndoStack(undoStack.slice(1));
-    setSelectedBin(null);
-    setSelectedBinId(null);
-  };
-
   // Carousel drop zone setup
-  const [, carouselDrop] = useDrop({
+  const [, carouselDrop] = useDrop(() => ({
     accept: ['bin', 'placed-bin'],
     drop: (item) => {
       if (item.placedBinId) {
-        // Moving bin from grid to carousel
         const binToMove = placedBins.find(bin => bin.id === item.placedBinId);
         if (binToMove) {
-          // Remove from placed bins
           setPlacedBins(prev => prev.filter(bin => bin.id !== item.placedBinId));
           
-          // Find original bin data or create carousel version
           const originalBin = availableBins.find(b => b.id === binToMove.originalId) || {
             id: binToMove.originalId || binToMove.id,
             label: binToMove.name,
@@ -233,7 +314,6 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
             color: binToMove.color
           };
           
-          // Add back to carousel
           setRemainingBins(prev => [...prev, originalBin]);
         }
       }
@@ -242,10 +322,10 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
     collect: (monitor) => ({
       isCarouselDropTarget: monitor.isOver() && monitor.getItem()?.placedBinId,
     }),
-  });
+  }), [JSON.stringify(placedBins), JSON.stringify(availableBins), setPlacedBins, setRemainingBins, handleCarouselDragOver]);
 
-  // Main grid drop zone setup
-  const [{ isOver }, drop] = useDrop({
+  // Main grid drop zone setup with proper hover visualization and size limits
+  const [{ isOver }, drop] = useDrop(() => ({
     accept: ['bin', 'placed-bin'],
     hover: (item, monitor) => {
       if (item.bin || item.placedBinId) {
@@ -257,19 +337,19 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
           const x = clientOffset.x - gridRect.left;
           const y = clientOffset.y - gridRect.top;
           
-          // Calculate position in 21mm increments using unified grid system
+          // Calculate grid position in 21mm increments
           const gridX = Math.floor(x / cellPixelSize);
           const gridY = Math.floor(y / cellPixelSize);
           
-          // Convert to millimeter coordinates (21mm increments)
+          // Convert to millimeter coordinates
           const mmX = gridX * GRID_SIZE;
           const mmY = gridY * GRID_SIZE;
           
-          // Create virtual dragged bin for carousel items or use existing draggedBin
+          // Create virtual dragged bin for carousel items
           let currentDraggedBin = draggedBin;
           
           if (item.bin && !currentDraggedBin) {
-            // Bin from carousel - create virtual dragged bin
+            // Bin from carousel - create temporary dragged bin
             currentDraggedBin = {
               id: item.bin.id,
               width: item.bin.width,
@@ -280,15 +360,27 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
           }
           
           if (currentDraggedBin) {
-            const newBin = { ...currentDraggedBin, x: mmX, y: mmY };
-            const isValid = checkBounds(newBin) && !checkCollision(newBin, currentDraggedBin.id);
+            const newBin = { 
+              ...currentDraggedBin, 
+              x: mmX, 
+              y: mmY 
+            };
+            
+            // Check if placement is valid (within 1-15 grid limits)
+            const isValid = checkBounds(newBin) && 
+                           !checkCollision(newBin, currentDraggedBin.id) &&
+                           newBin.x >= 0 && 
+                           newBin.y >= 0 &&
+                           (newBin.x + newBin.width) <= (gridCols * GRID_SIZE) &&
+                           (newBin.y + newBin.length) <= (gridRows * GRID_SIZE);
 
-            // Convert millimeter coordinates to pixel positions for shadow display
-            const pixelX = (mmX / 21) * cellPixelSize;
-            const pixelY = (mmY / 21) * cellPixelSize;
-            const pixelWidth = (currentDraggedBin.width / 21) * cellPixelSize;
-            const pixelHeight = (currentDraggedBin.length / 21) * cellPixelSize;
+            // Convert to pixel positions for visual feedback
+            const pixelX = (mmX / GRID_SIZE) * cellPixelSize;
+            const pixelY = (mmY / GRID_SIZE) * cellPixelSize;
+            const pixelWidth = (currentDraggedBin.width / GRID_SIZE) * cellPixelSize;
+            const pixelHeight = (currentDraggedBin.length / GRID_SIZE) * cellPixelSize;
 
+            // Update drop shadow for visual feedback
             setDropShadow({
               left: pixelX,
               top: pixelY,
@@ -297,8 +389,6 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
               visible: true,
               error: !isValid
             });
-          } else {
-            handleGridHover(mmX, mmY);
           }
         }
       }
@@ -312,27 +402,36 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
         const x = clientOffset.x - gridRect.left;
         const y = clientOffset.y - gridRect.top;
         
-        // Calculate position in 21mm increments using unified grid system
+        // Calculate grid position in 21mm increments
         const gridX = Math.floor(x / cellPixelSize);
         const gridY = Math.floor(y / cellPixelSize);
         
         if (item.placedBinId) {
-          // Moving existing bin - convert to millimeters
-          const newX = gridX * GRID_SIZE; // 21mm increments
+          // Moving existing bin
+          const newX = gridX * GRID_SIZE;
           const newY = gridY * GRID_SIZE;
           
-          if (isValidPlacement({ ...draggedBin, x: newX, y: newY }, item.placedBinId)) {
-            pushUndoState();
-            moveBin(item.placedBinId, newX, newY);
-          } else {
-            showCenterError('Cannot place bin here - overlaps with existing bin or outside bounds');
+          // Validate placement within grid bounds (1-15 units)
+          const binToMove = placedBins.find(bin => bin.id === item.placedBinId);
+          if (binToMove) {
+            const updatedBin = { ...binToMove, x: newX, y: newY };
+            if (isValidPlacement(updatedBin, item.placedBinId) &&
+                newX >= 0 && 
+                newY >= 0 &&
+                (newX + binToMove.width) <= (gridCols * GRID_SIZE) &&
+                (newY + binToMove.length) <= (gridRows * GRID_SIZE)) {
+              pushUndoState();
+              moveBin(item.placedBinId, newX, newY);
+            } else {
+              showCenterError('Cannot place bin here - overlaps with existing bin or outside bounds');
+            }
           }
         } else if (item.bin) {
-          // Placing new bin from carousel - convert to millimeters
+          // Placing new bin from carousel
           const newBin = {
             id: uuidv4(),
             originalId: item.bin.id,
-            x: gridX * GRID_SIZE, // Convert to 21mm increments
+            x: gridX * GRID_SIZE,
             y: gridY * GRID_SIZE,
             width: item.bin.width,
             length: item.bin.length,
@@ -343,7 +442,12 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
             colorway: 'cream'
           };
 
-          if (isValidPlacement(newBin)) {
+          // Validate placement within grid bounds (1-15 units)
+          if (isValidPlacement(newBin) &&
+              newBin.x >= 0 && 
+              newBin.y >= 0 &&
+              (newBin.x + newBin.width) <= (gridCols * GRID_SIZE) &&
+              (newBin.y + newBin.length) <= (gridRows * GRID_SIZE)) {
             pushUndoState();
             addBin(newBin);
             setRemainingBins(prev => prev.filter(bin => bin.id !== item.bin.id));
@@ -352,11 +456,29 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
           }
         }
       }
+      
+      // Clear drop shadow after drop
+      setDropShadow(null);
     },
     collect: (monitor) => ({
       isOver: monitor.isOver(),
     }),
-  });
+  }), [
+    cellPixelSize,
+    draggedBin,
+    isValidPlacement,
+    pushUndoState,
+    moveBin,
+    showCenterError,
+    addBin,
+    setRemainingBins,
+    JSON.stringify(placedBins),
+    checkBounds,
+    checkCollision,
+    setDropShadow,
+    gridCols,
+    gridRows
+  ]);
 
   // Clear drop shadow when not hovering over grid
   useEffect(() => {
@@ -366,48 +488,50 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
   }, [isOver, setDropShadow]);
 
   // Bin event handlers
-  const handleBinClick = (bin) => {
+  const handleBinClick = useCallback((bin) => {
     selectBin(bin);
     setSelectedBinId(bin.id);
-  };
+  }, [selectBin]);
 
-  const handleBinDoubleClick = (bin) => {
+  const handleBinDoubleClick = useCallback((bin) => {
     removeBin(bin.id);
     
-    // Add back to available bins if it was originally from availableBins
     const originalBin = availableBins.find(b => b.id === bin.originalId);
     if (originalBin) {
       setRemainingBins(prev => [...prev, originalBin]);
     }
-  };
+  }, [removeBin, JSON.stringify(availableBins), setRemainingBins]);
 
-  const handleBinSave = (updatedBin) => {
-    // Determine if save affects undoable properties (colorway/color/height or structural)
+  const handleBinSave = useCallback((updatedBin) => {
     const prevBin = placedBins.find(b => b.id === updatedBin.id);
     if (prevBin) {
-      const affectsUndo = prevBin.height !== updatedBin.height || prevBin.colorway !== updatedBin.colorway || prevBin.color !== updatedBin.color;
+      const affectsUndo = prevBin.height !== updatedBin.height || 
+                         prevBin.colorway !== updatedBin.colorway || 
+                         prevBin.color !== updatedBin.color;
       if (affectsUndo) pushUndoState();
     }
     setPlacedBins(prev => prev.map(bin => bin.id === updatedBin.id ? updatedBin : bin));
-    // Collapse panel & deselect after save
     setSelectedBin(null);
     setSelectedBinId(null);
-  };
+  }, [placedBins, pushUndoState, setPlacedBins, setSelectedBin]);
 
-  const handleBinDelete = (binId) => {
+  const handleBinDelete = useCallback((binId) => {
     pushUndoState();
-    handleBinDoubleClick(placedBins.find(bin => bin.id === binId));
+    const binToDelete = placedBins.find(bin => bin.id === binId);
+    if (binToDelete) {
+      handleBinDoubleClick(binToDelete);
+    }
     setSelectedBin(null);
     setSelectedBinId(null);
-  };
+  }, [pushUndoState, placedBins, handleBinDoubleClick, setSelectedBin]);
 
-  const handlePanelClose = () => {
+  const handlePanelClose = useCallback(() => {
     setSelectedBin(null);
     setSelectedBinId(null);
-  };
+  }, [setSelectedBin]);
 
-  // Action button handlers
-  const handleAutoSort = () => {
+  // Action button handlers with size validation
+  const handleAutoSort = useCallback(() => {
     pushUndoState();
     if (placedBins.length === 0) {
       showCenterError('No bins to sort');
@@ -423,7 +547,6 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
     setPlacedBins(sortedBins);
     
     if (unplacedBins.length > 0) {
-      // Add unplaced bins back to carousel
       const carouselBins = unplacedBins.map(bin => ({
         id: bin.originalId || bin.id,
         label: bin.name,
@@ -436,72 +559,75 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
     } else {
       showCenterError('All bins sorted successfully!');
     }
-  };
+  }, [pushUndoState, JSON.stringify(placedBins), gridCols, gridRows, setPlacedBins, setRemainingBins, showCenterError]);
 
-  const handleGenerateBins = () => {
+  const handleGenerateBins = useCallback(() => {
     pushUndoState();
     const newBins = [];
     let binCounter = 0;
-    let currentPlacedBins = [...placedBins]; // Working copy to track placements
+    let currentPlacedBins = [...placedBins];
     
-    // Continue placing bins until no more can be placed
     let canPlaceMore = true;
     let iterations = 0;
-    const maxIterations = 200; // Increased limit for comprehensive filling
+    const maxIterations = 200;
     
     while (canPlaceMore && iterations < maxIterations) {
       iterations++;
       canPlaceMore = false;
       
-      // Find all available gaps (minimum 2 cells area to avoid 1x1 gaps)
+      // Find all available gaps within 1-15 grid limits
       const gaps = BinSortingService.findAllGaps(gridCols, gridRows, currentPlacedBins, 2);
       
       if (gaps.length === 0) {
-        break; // No more fillable gaps available
+        break;
       }
 
-      // Try to fill each gap with the largest possible bin
       for (const gap of gaps) {
-        // Convert gap dimensions to millimeters
-        const gapWidthMM = gap.width * GRID_SIZE;
-        const gapHeightMM = gap.height * GRID_SIZE;
+        // Ensure gap is within valid grid bounds (1-15 units)
+        if (gap.x >= 0 && gap.y >= 0 && 
+            (gap.x + gap.width) <= gridCols && 
+            (gap.y + gap.height) <= gridRows) {
+          
+          const gapWidthMM = gap.width * GRID_SIZE;
+          const gapHeightMM = gap.height * GRID_SIZE;
 
-        // Try to fit the largest possible bin in this gap
-        let binPlaced = false;
-        for (const binSize of STANDARD_BIN_SIZES) {
-          // Check if bin fits in the gap
-          if (binSize.width <= gapWidthMM && binSize.length <= gapHeightMM) {
-            const newBin = {
-              id: uuidv4(),
-              x: gap.x * GRID_SIZE, // Convert cell position to mm
-              y: gap.y * GRID_SIZE, // Convert cell position to mm
-              width: binSize.width,
-              length: binSize.length,
-              height: 21,
-              shadowBoard: false,
-              name: `Auto ${binCounter + 1}`,
-              // Updated: use standardized cream colorway instead of cycling legacy colors
-              colorway: 'cream',
-              color: '#F5E6C8'
-            };
+          let binPlaced = false;
+          for (const binSize of STANDARD_BIN_SIZES) {
+            // Check if bin fits in the gap and within size limits
+            if (binSize.width <= gapWidthMM && binSize.length <= gapHeightMM) {
+              const newBin = {
+                id: uuidv4(),
+                x: gap.x * GRID_SIZE,
+                y: gap.y * GRID_SIZE,
+                width: binSize.width,
+                length: binSize.length,
+                height: 21,
+                shadowBoard: false,
+                name: `Auto ${binCounter + 1}`,
+                colorway: 'cream',
+                color: '#F5E6C8'
+              };
 
-            // Check if this placement is valid
-            if (BinSortingService.checkValidPlacement(newBin, currentPlacedBins, gridCols, gridRows)) {
-              // Add to both our tracking array and the actual bins array
-              currentPlacedBins.push(newBin);
-              newBins.push(newBin);
-              addBin(newBin);
-              binCounter++;
-              canPlaceMore = true; // We placed a bin, so continue trying
-              binPlaced = true;
-              break; // Move to next gap after placing one bin
+              // Validate placement within grid bounds
+              if (BinSortingService.checkValidPlacement(newBin, currentPlacedBins, gridCols, gridRows) &&
+                  newBin.x >= 0 && 
+                  newBin.y >= 0 &&
+                  (newBin.x + newBin.width) <= (gridCols * GRID_SIZE) &&
+                  (newBin.y + newBin.length) <= (gridRows * GRID_SIZE)) {
+                currentPlacedBins.push(newBin);
+                newBins.push(newBin);
+                addBin(newBin);
+                binCounter++;
+                canPlaceMore = true;
+                binPlaced = true;
+                break;
+              }
             }
           }
-        }
 
-        // If we placed a bin, break out of gap loop and recalculate gaps
-        if (binPlaced) {
-          break;
+          if (binPlaced) {
+            break;
+          }
         }
       }
     }
@@ -511,20 +637,22 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
     } else {
       showCenterError('No suitable bin size found for available space');
     }
-  };
+  }, [pushUndoState, JSON.stringify(placedBins), gridCols, gridRows, addBin, showCenterError]);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     pushUndoState();
     clearAllBins();
     setRemainingBins([...availableBins]);
     setSelectedBin(null);
     setSelectedBinId(null);
-  };
+  }, [pushUndoState, clearAllBins, JSON.stringify(availableBins), setRemainingBins, setSelectedBin]);
 
-  const handleReview = () => {
+  const handleReview = useCallback(() => {
     if (placedBins.length === 0) {
       setErrorMessage('Please place at least one bin before proceeding.');
-      setTimeout(() => setErrorMessage(null), 3000);
+      requestAnimationFrame(() => {
+        setTimeout(() => setErrorMessage(null), 3000);
+      });
       return;
     }
 
@@ -541,25 +669,28 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
     
     onLayoutComplete(layoutData);
     navigate('/review');
-  };
+  }, [JSON.stringify(placedBins), gridDimensions?.width, gridDimensions?.length, setErrorMessage, onLayoutComplete, navigate]);
 
   // Keyboard support
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedBinId) {
-          e.preventDefault();
-          handleBinDelete(selectedBinId);
-        }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBinId) {
+        e.preventDefault();
+        handleBinDelete(selectedBinId);
       }
       if (e.key === 'Escape') {
         handlePanelClose();
+      }
+      // Add Ctrl+S or Cmd+S for manual save
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSaveToSupabase();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedBinId]);
+  }, [selectedBinId, handleBinDelete, handlePanelClose, handleSaveToSupabase]);
 
   // Window resize handler
   useEffect(() => {
@@ -568,25 +699,19 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
         width: window.innerWidth,
         height: window.innerHeight
       });
-      
-      // Re-apply orientation when viewport orientation changes
-      if (drawerDimensions) {
-        setDrawerDimensions(drawerDimensions);
-      }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [drawerDimensions, setDrawerDimensions]);
+  }, []);
 
   // Live update handler for bin properties
-  const handleBinLiveChange = (partialBin) => {
+  const handleBinLiveChange = useCallback((partialBin) => {
     const prevBin = placedBins.find(b => b.id === partialBin.id);
     if (prevBin) {
       const heightChanged = prevBin.height !== partialBin.height;
       const colorChanged = prevBin.color !== partialBin.color;
       const colorwayChanged = prevBin.colorway !== partialBin.colorway;
-      // Only push undo for visual/size changes, never for name-only edits
       if (heightChanged || colorChanged || colorwayChanged) {
         pushUndoState();
       }
@@ -595,29 +720,32 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
     if (selectedBin?.id === partialBin.id) {
       setSelectedBin(partialBin);
     }
-  };
+  }, [placedBins, pushUndoState, setPlacedBins, selectedBin, setSelectedBin]);
 
-  // Auto-save placedBins to global data manager (debounced)
-  const autoSaveTimerRef = useRef(null);
-  const initialLoadRef = useRef(true);
-  useEffect(() => {
-    if (!dataManager || typeof dataManager.updateLayoutConfig !== 'function') return;
-    // Skip the very first effect run right after mount/initial restore
-    if (initialLoadRef.current) {
-      initialLoadRef.current = false;
-      return;
-    }
-    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    autoSaveTimerRef.current = setTimeout(() => {
-      try {
-        dataManager.updateLayoutConfig(placedBins);
-        // console.log('[AutoSave] layoutConfig updated with', placedBins.length, 'bins');
-      } catch (e) {
-        console.error('[AutoSave] Failed to save layout', e);
-      }
-    }, 400); // 400ms debounce
-    return () => autoSaveTimerRef.current && clearTimeout(autoSaveTimerRef.current);
-  }, [placedBins, dataManager]);
+  // Memoize expensive calculations
+  const hasPlacedBins = useMemo(() => 
+    placedBins.length > 0 || undoStack.length > 0, 
+    [placedBins.length, undoStack.length]
+  );
+
+  // Calculate image positioning to ensure bins are visible
+  const backgroundImageStyle = useMemo(() => {
+    if (!underlayImage) return {};
+    
+    return {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      backgroundImage: `url(${underlayImage})`,
+      backgroundSize: 'contain',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      pointerEvents: 'none',
+      zIndex: 1
+    };
+  }, [underlayImage]);
 
   return (
     <DesignerContainer>
@@ -628,7 +756,9 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
             onReset={handleReset}
             onReview={handleReview}
             onUndo={handleUndo}
-            hasPlacedBins={placedBins.length > 0 || undoStack.length > 0}
+            onSave={handleSaveToSupabase} 
+            isSaving={isSaving} 
+            hasPlacedBins={hasPlacedBins}
           />
         </LeftColumn>
         <CenterColumn>
@@ -638,13 +768,20 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
                 <GridSection>
                   <GridWrapper>
                     {errorMessage && (
-                      <ErrorNotification style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', zIndex: 1000, pointerEvents: 'none' }}>
+                      <ErrorNotification style={{ 
+                        position: 'absolute', 
+                        top: 0, 
+                        left: '50%', 
+                        transform: 'translateX(-50%)', 
+                        zIndex: 1000, 
+                        pointerEvents: 'none' 
+                      }}>
                         {errorMessage}
                       </ErrorNotification>
                     )}
                     <GridBoundingBox 
-                      width={gridBounds.width}
-                      height={gridBounds.height}
+                      width={gridBounds?.width || 0}
+                      height={gridBounds?.height || 0}
                     >
                       <div style={{
                         position: 'absolute',
@@ -656,7 +793,7 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
                         fontSize: '1rem',
                         zIndex: 100
                       }}>
-                        Grid: {gridCols} cols × {gridRows} rows (min: 1, max: {Math.floor(320 / GRID_SIZE)})
+                        Grid: {gridCols} cols × {gridRows} rows (min: 1, max: 15)
                       </div>
                       <BinGrid
                         ref={drop}
@@ -680,12 +817,18 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
                         underlayImage={underlayImage}
+                        backgroundImageStyle={backgroundImageStyle}
                       />
                     </GridBoundingBox>
                   </GridWrapper>
 
                   <InstructionText>
                     Click and drag to draw custom bins • Double-click bins to delete • Drop bins here to place them
+                    {projectId && (
+                      <span style={{ display: 'block', marginTop: '4px', fontSize: '0.85rem' }}>
+                        💾 Auto-saving enabled for project: {projectId.substring(0, 8)}...
+                      </span>
+                    )}
                   </InstructionText>
                 </GridSection>
               </GridContainer>
@@ -694,11 +837,15 @@ export default function LayoutDesigner({ drawerDimensions, availableBins = [], o
         </CenterColumn>
         <RightColumn>
           <Drawer3DWrapper>
-            <Drawer3DView drawerDimensions={gridDimensions} bins={placedBins} selectedBinId={selectedBin?.id} />
+            <Drawer3DView 
+              drawerDimensions={gridDimensions} 
+              bins={placedBins} 
+              selectedBinId={selectedBin?.id} 
+            />
           </Drawer3DWrapper>
-      <BinOptionsAccordion $open={!!selectedBin}>
+          <BinOptionsAccordion $open={!!selectedBin}>
             <BinOptionsPanel
-        open={!!selectedBin}
+              open={!!selectedBin}
               bin={selectedBin}
               onSave={handleBinSave}
               onLiveChange={handleBinLiveChange}
