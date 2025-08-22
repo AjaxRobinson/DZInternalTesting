@@ -4,52 +4,37 @@ import styled, { keyframes } from 'styled-components';
 import PerspectiveGridRectifier from './PerspectiveGridRectifier';
 import SupabaseService from '../../services/SupabaseService';
 
-// Responsive utility
-const breakpoints = {
-  mobile: '480px',
-  tablet: '768px',
-  desktop: '1024px'
-};
-
-const media = {
-  mobile: `@media (max-width: ${breakpoints.mobile})`,
-  tablet: `@media (max-width: ${breakpoints.tablet})`,
-  desktop: `@media (max-width: ${breakpoints.desktop})`
-};
 
 const SetupContainer = styled.div`
   width: 100%;
   margin: 0 auto;
-  padding: ${props => props.$expanded ? '0.75rem' : '1rem'};
-  padding-top: ${props => props.$expanded ? '0.75rem' : '1rem'};
+  padding: ${props => props.$expanded ? '1rem' : '1rem'};
+  padding-top: ${props => props.$expanded ? '1rem' : '1rem'};
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: calc(100vh - 80px);
+  height: calc(100vh - 80px);
+  max-height: calc(100vh - 80px);
   box-sizing: border-box;
   overflow-y: auto;
   transition: padding 0.3s ease-in-out;
   
-  ${media.tablet} {
-    padding: ${props => props.$expanded ? '0.5rem' : '0.75rem'};
-    padding-top: ${props => props.$expanded ? '0.5rem' : '0.75rem'};
-    min-height: calc(100vh - 70px);
-  }
-  
-  ${media.mobile} {
-    padding: 0.5rem;
-    padding-top: 0.75rem;
+  @media (max-width: 768px) {
+    padding: ${props => props.$expanded ? '0.75rem' : '0.75rem'};
+    padding-top: ${props => props.$expanded ? '0.75rem' : '0.75rem'};
+    height: calc(100vh - 70px);
+    max-height: calc(100vh - 70px);
   }
 `;
 
 const Card = styled.div`
   background: white;
-  padding: ${props => props.$expanded ? '1rem' : '1.5rem'};
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-  margin-top: ${props => props.$expanded ? '0' : '1rem'};
+  padding: ${props => props.$expanded ? '1.5rem' : '2rem'};
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  margin-top: ${props => props.$expanded ? '0' : '1.5rem'};
   width: 100%;
-  max-width: ${props => props.$expanded ? '100%' : '800px'};
+  max-width: ${props => props.$expanded ? '95%' : '800px'};
   text-align: center;
   transition: all 0.3s ease-in-out;
   flex: 1;
@@ -58,64 +43,50 @@ const Card = styled.div`
   overflow-y: auto;
   overflow-x: hidden;
   
-  ${media.tablet} {
-    padding: ${props => props.$expanded ? '0.75rem' : '1rem'};
-    border-radius: 10px;
-  }
-  
-  ${media.mobile} {
-    padding: 0.75rem;
-    margin-top: 0.5rem;
+  @media (max-width: 768px) {
+    padding: ${props => props.$expanded ? '1rem' : '1.25rem'};
+    max-width: 100%;
   }
 `;
 
 const InputRow = styled.div`
   display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
   width: 100%;
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
-  padding: 0 0.5rem;
+  padding: 0 1rem;
   box-sizing: border-box;
-  flex-direction: column;
   
-  ${media.tablet} {
-    gap: 0.75rem;
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 1rem;
     padding: 0;
     max-width: 100%;
-  }
-  
-  ${media.mobile} {
-    gap: 0.5rem;
   }
 `;
 
 const InputGroup = styled.div`
   flex: 1;
   text-align: left;
-  width: 100%;
 `;
 
 const Label = styled.label`
   display: block;
   font-weight: 600;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.5rem;
   color: #374151;
-  font-size: 0.85rem;
-  
-  ${media.mobile} {
-    font-size: 0.8rem;
-  }
+  font-size: 0.9rem;
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding: 0.65rem;
+  padding: 0.75rem;
   border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  font-size: 0.95rem;
+  border-radius: 8px;
+  font-size: 1rem;
   transition: border-color 0.2s, box-shadow 0.2s;
   box-sizing: border-box;
   background: #f9fafb;
@@ -123,71 +94,55 @@ const Input = styled.input`
   &:focus {
     outline: none;
     border-color: #4f46e5;
-    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
   }
   
   &::placeholder {
     color: #9ca3af;
-    font-size: 0.9rem;
-  }
-  
-  ${media.mobile} {
-    padding: 0.55rem;
-    font-size: 0.9rem;
   }
 `;
 
 const UnitToggle = styled.div`
   display: flex;
   background: #f3f4f6;
-  border-radius: 6px;
-  padding: 0.2rem;
-  margin-bottom: 1rem;
+  border-radius: 8px;
+  padding: 0.25rem;
+  margin-bottom: 1.5rem;
   width: 100%;
-  max-width: 260px;
+  max-width: 280px;
   margin-left: auto;
   margin-right: auto;
   
-  ${media.mobile} {
-    max-width: 220px;
-    padding: 0.15rem;
+  @media (max-width: 768px) {
+    max-width: 250px;
   }
 `;
 
 const UnitButton = styled.button`
   flex: 1;
-  padding: 0.45rem 0.75rem;
+  padding: 0.5rem 1rem;
   background: ${props => props.$active ? '#4f46e5' : 'transparent'};
   color: ${props => props.$active ? 'white' : '#6b7280'};
   border: none;
-  border-radius: 5px;
+  border-radius: 6px;
   font-weight: 500;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   transition: all 0.2s;
   cursor: pointer;
   
   &:hover {
     background: ${props => props.$active ? '#4338ca' : '#e5e7eb'};
   }
-  
-  ${media.mobile} {
-    padding: 0.4rem 0.6rem;
-    font-size: 0.8rem;
-  }
 `;
-const spin = keyframes`
-  to {
-    transform: rotate(360deg);
-  }
-`;
+
 const SubmitButton = styled.button`
   width: 100%;
-  padding: 0.9rem;
-  margin-top: ${props => props.$expanded ? '0.75rem' : '1rem'};
+  padding: 1rem;
+  margin-top: ${props => props.$expanded ? '1rem' : '1.5rem'};
   background: #4f46e5;
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -197,7 +152,7 @@ const SubmitButton = styled.button`
   &:hover {
     background: #4338ca;
     transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(79, 70, 229, 0.3);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
   }
   
   &:active {
@@ -210,43 +165,24 @@ const SubmitButton = styled.button`
     transform: none;
     box-shadow: none;
   }
-  
-  ${media.mobile} {
-    padding: 0.8rem;
-    font-size: 0.95rem;
-    margin-top: 0.75rem;
-  }
-`;
-const Spinner = styled.div`
-  width: 16px;
-  height: 16px;
-  border: 2px solid #ffffff;
-  border-radius: 50%;
-  border-top-color: transparent;
-  animation: ${spin} 1s linear infinite;
 `;
 
 const UploadLabel = styled.label`
   display: inline-block;
-  padding: 0.75rem 1.5rem;
+  padding: 0.875rem 1.75rem;
   background: #4f46e5;
   color: white;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   transition: all 0.2s;
   margin: 0.5rem 0;
   
   &:hover {
     background: #4338ca;
     transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(79, 70, 229, 0.3);
-  }
-  
-  ${media.mobile} {
-    padding: 0.65rem 1.25rem;
-    font-size: 0.85rem;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
   }
 `;
 
@@ -257,104 +193,72 @@ const HiddenFileInput = styled.input`
 const PageTitle = styled.h1`
   text-align: center;
   color: #111827;
-  margin-bottom: 0.4rem;
-  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 2rem;
   font-weight: 700;
   opacity: ${props => props.$visible ? 1 : 0};
   max-height: ${props => props.$visible ? '200px' : '0'};
   overflow: hidden;
   transition: opacity 0.3s ease-in-out, max-height 0.3s ease-in-out, margin 0.3s ease-in-out;
-  margin-bottom: ${props => props.$visible ? '0.4rem' : '0'};
+  margin-bottom: ${props => props.$visible ? '0.5rem' : '0'};
   
-  ${media.tablet} {
-    font-size: 1.5rem;
-  }
-  
-  ${media.mobile} {
-    font-size: 1.35rem;
-    margin-bottom: 0.3rem;
+  @media (max-width: 768px) {
+    font-size: 1.75rem;
   }
 `;
 
 const PageSubtitle = styled.p`
   text-align: center;
   color: #6b7280;
-  margin-bottom: 1rem;
-  font-size: 0.95rem;
-  line-height: 1.4;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  line-height: 1.5;
   opacity: ${props => props.$visible ? 1 : 0};
   max-height: ${props => props.$visible ? '100px' : '0'};
   overflow: hidden;
   transition: opacity 0.3s ease-in-out 0.1s, max-height 0.3s ease-in-out 0.1s, margin 0.3s ease-in-out 0.1s;
-  margin-bottom: ${props => props.$visible ? '1rem' : '0'};
+  margin-bottom: ${props => props.$visible ? '1.5rem' : '0'};
   
-  ${media.tablet} {
-    font-size: 0.9rem;
-  }
-  
-  ${media.mobile} {
-    font-size: 0.85rem;
-    margin-bottom: 0.75rem;
+  @media (max-width: 768px) {
+    font-size: 0.95rem;
   }
 `;
 
 const PreviewSection = styled.div`
   width: 100%;
   max-width: 900px;
-  margin: 0.75rem auto;
-  padding: 0.75rem;
+  margin: 1rem auto;
+  padding: 1rem;
   background: #f9fafb;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid #e5e7eb;
-  
-  ${media.mobile} {
-    padding: 0.5rem;
-    margin: 0.5rem auto;
-  }
 `;
 
 const SectionTitle = styled.h3`
-  margin: 0 0 0.4rem 0;
+  margin: 0 0 0.5rem 0;
   color: #111827;
-  font-size: 1rem;
-  
-  ${media.mobile} {
-    font-size: 0.95rem;
-  }
+  font-size: 1.1rem;
 `;
 
 const SectionDescription = styled.p`
   color: #6b7280;
-  font-size: 0.85rem;
-  margin: 0.4rem 0 0.75rem;
-  line-height: 1.4;
-  
-  ${media.mobile} {
-    font-size: 0.8rem;
-  }
+  font-size: 0.9rem;
+  margin: 0.5rem 0 1rem;
+  line-height: 1.5;
 `;
 
 const WarningText = styled.p`
   color: #b45309;
-  font-size: 0.8rem;
-  margin: 0.4rem 0 0;
-  
-  ${media.mobile} {
-    font-size: 0.75rem;
-  }
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
 `;
 
 const DebugPanel = styled.div`
-  margin-top: 0.75rem;
-  padding: 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem;
   border: 1px dashed #3b82f6;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #f0f9ff;
-  
-  ${media.mobile} {
-    padding: 0.5rem;
-    margin-top: 0.5rem;
-  }
 `;
 
 const DebugHeader = styled.div`
@@ -363,86 +267,41 @@ const DebugHeader = styled.div`
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
-  margin-bottom: 0.4rem;
-  
-  ${media.mobile} {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.4rem;
-  }
+  margin-bottom: 0.5rem;
 `;
 
 const DebugButton = styled.button`
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   background: ${({ $primary }) => ($primary ? '#2563eb' : '#64748b')};
   color: #fff;
   border: none;
-  padding: 0.35rem 0.6rem;
+  padding: 0.4rem 0.7rem;
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.2s;
-  flex: 1;
-  min-width: 80px;
   
   &:hover {
     background: ${({ $primary }) => ($primary ? '#1d4ed8' : '#475569')};
   }
-  
-  ${media.mobile} {
-    padding: 0.3rem 0.5rem;
-    font-size: 0.65rem;
-  }
 `;
 
 const DebugContent = styled.div`
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   color: #1e40af;
   word-break: break-all;
-  margin-top: 0.4rem;
-  
-  ${media.mobile} {
-    font-size: 0.6rem;
-  }
+  margin-top: 0.5rem;
 `;
 
 const PreviewImage = styled.img`
   max-width: 100%;
-  max-height: 200px;
+  max-height: 250px;
   object-fit: contain;
   border: 1px solid #93c5fd;
   background: #fff;
-  margin-top: 0.4rem;
-  border-radius: 4px;
-  
-  ${media.mobile} {
-    max-height: 150px;
-  }
-`;
-
-const ResponsiveRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  width: 100%;
-  max-width: 600px;
-  margin: 0 auto 1rem;
-  padding: 0 0.5rem;
-  box-sizing: border-box;
-  
-  ${media.tablet} {
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 0;
-    max-width: 100%;
-  }
-  
-  ${media.mobile} {
-    gap: 0.5rem;
-  }
+  margin-top: 0.5rem;
 `;
 
 const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
-  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const rectifierRef = useRef(null);
   
@@ -505,6 +364,12 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
     const v = parseFloat(mmVal);
     return unit === 'mm' ? v.toFixed(1) : (v / 25.4).toFixed(1);
   }, [unit]);
+
+  // const displayDims = useMemo(() => ({
+  //   width: formatDisplayVal(baseDimensionsMM.width),
+  //   length: formatDisplayVal(baseDimensionsMM.length),
+  //   height: formatDisplayVal(baseDimensionsMM.height)
+  // }), [baseDimensionsMM, formatDisplayVal]);
 
   // Event handlers
   const handleInputChange = useCallback((field, val) => {
@@ -673,18 +538,91 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
           rectifyMeta
         });
       }
+
+      // if (SupabaseService.isEnabled()) {
+      //   const now = new Date();
+      //   const dateFolder = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+      //     .toISOString().slice(0, 10);
+      //   const rand = Math.random().toString(16).slice(2, 8);
+      //   const isoStamp = new Date().toISOString().replace(/:/g, '-');
+      //   const sampleId = `${isoStamp}_${rand}`;
+      //   const originalKey = `raw/${dateFolder}/${rand}.jpg`;
+      //   const rectifiedKey = `rectified/${dateFolder}/${rand}.jpg`;
+
+      //   try {
+      //     // Upload raw image if available
+      //     if (originalFile) {
+      //       await SupabaseService.uploadImage(
+      //         originalKey, 
+      //         originalFile, 
+      //         originalFile.type || 'image/jpeg'
+      //       );
+      //     }
+
+      //     // Upload rectified image
+      //     if (rectifiedBlob) {
+      //       await SupabaseService.uploadImage(
+      //         rectifiedKey, 
+      //         rectifiedBlob, 
+      //         'image/jpeg'
+      //       );
+      //     }
+
+      //     // Insert metadata record
+      //     const width_mm = parseFloat(baseDimensionsMM.width);
+      //     const length_mm = parseFloat(baseDimensionsMM.length);
+      //     const depth_mm = parseFloat(baseDimensionsMM.height);
+      //     const quality = { user_confirmed: true, fit_error_px: 0 };
+      //     const interaction_stats = { 
+      //       drag_events: metrics?.drag_events || 0, 
+      //       ms_adjusting: metrics?.ms_adjusting || 0 
+      //     };
+      //     const client = getClientInfo();
+
+      //     await SupabaseService.insertRecord({
+      //       sample_id: sampleId,
+      //       image_original_key: originalKey,
+      //       image_rectified_key: rectifiedKey,
+      //       orig_size_px,
+      //       quad_px,
+      //       target_size_px,
+      //       drawer_dims_mm: { width_mm, length_mm, depth_mm },
+      //       px_per_mm_after_rect: { 
+      //         x: px_per_mm_after_rect?.x, 
+      //         y: px_per_mm_after_rect?.y 
+      //       },
+      //       homography,
+      //       quality,
+      //       interaction_stats,
+      //       client,
+      //       exif
+      //     });
+
+      //     if (dataManager) {
+      //       dataManager.updateUploadedImage({
+      //         ...dataManager.appData.uploadedImage,
+      //         rectifyMeta: {
+      //           ...rectifyMeta,
+      //           sample_id: sampleId,
+      //           image_original_key: originalKey,
+      //           image_rectified_key: rectifiedKey
+      //         }
+      //       });
+      //     }
+      //   } catch (e) {
+      //     console.warn('Supabase operation failed', e);
+      //   }
+      // }
     } catch (err) {
       console.error('Rectification completion error', err);
     }
   }, [dataManager, originalFile, baseDimensionsMM, drawerMM]);
-
   const handleSubmit = useCallback(async () => {
-    if (submitting) return;
     let rectifyResult = null;
-    setSubmitting(true);
+  
     if (rectifierRef.current && image && baseDimensionsMM.width && baseDimensionsMM.length) {
       try {
-        rectifyResult = await rectifierRef.current.rectify();
+        rectifyResult = await rectifierRef.current.rectify(); // This updates UI but doesn't insert
       } catch (e) {
         console.warn('Rectification failed', e);
       }
@@ -699,7 +637,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
   
     const finalUnderlay = rectifyResult?.underlayImage || underlayImage || croppedImage || image;
   
-    // Finalize and save to Supabase only here
+    // ✅ Finalize and save to Supabase only here
     if (SupabaseService.isEnabled() && rectifyResult) {
       const { rectifiedBlob, quad_px, target_size_px, homography, px_per_mm_after_rect, metrics, exif, orig_size_px } = rectifyResult;
   
@@ -779,9 +717,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
     });
   
     navigate('/layout', { state: { underlayImage: finalUnderlay } });
-    setSubmitting(false);
   }, [
-    submitting,
     image, 
     baseDimensionsMM, 
     dataManager, 
@@ -795,6 +731,68 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
     originalFile,
     getClientInfo
   ]);
+  // const handleSubmit = useCallback(async () => {
+  //   let rectifyResult = null;
+    
+  //   if (rectifierRef.current && image && baseDimensionsMM.width && baseDimensionsMM.length) {
+  //     try {
+  //       rectifyResult = await rectifierRef.current.rectify();
+        
+  //       if (rectifyResult?.underlayImage) {
+  //         setUnderlayImage(rectifyResult.underlayImage);
+  //         setCroppedImage(rectifyResult.underlayImage);
+          
+  //         if (dataManager) {
+  //           dataManager.updateUploadedImage({
+  //             ...(dataManager.appData.uploadedImage || {}),
+  //             underlay: rectifyResult.underlayImage,
+  //             rectifyMeta: {
+  //               quad_px: rectifyResult.quad_px,
+  //               target_size_px: rectifyResult.target_size_px,
+  //               homography: rectifyResult.homography,
+  //               px_per_mm_after_rect: rectifyResult.px_per_mm_after_rect,
+  //               metrics: rectifyResult.metrics,
+  //               exif: rectifyResult.exif,
+  //               orig_size_px: rectifyResult.orig_size_px,
+  //               drawer_mm: { width: drawerMM.width, length: drawerMM.length }
+  //             }
+  //           });
+  //         }
+  //       }
+  //     } catch (e) {
+  //       console.warn('Rectification failed', e);
+  //     }
+  //   }
+
+  //   const rawDimensions = {
+  //     width: parseFloat(baseDimensionsMM.width),
+  //     length: parseFloat(baseDimensionsMM.length),
+  //     height: parseFloat(baseDimensionsMM.height),
+  //     unit: 'mm'
+  //   };
+
+  //   const finalUnderlay = rectifyResult?.underlayImage || underlayImage || croppedImage || image;
+    
+  //   onComplete({
+  //     drawerDimensions: rawDimensions,
+  //     underlayImage: finalUnderlay,
+  //     transform,
+  //     cornerDeltas
+  //   });
+    
+  //   navigate('/layout', { state: { underlayImage: finalUnderlay } });
+  // }, [
+  //   image, 
+  //   baseDimensionsMM, 
+  //   dataManager, 
+  //   drawerMM, 
+  //   underlayImage, 
+  //   croppedImage, 
+  //   transform, 
+  //   cornerDeltas, 
+  //   onComplete, 
+  //   navigate
+  // ]);
 
   const handleRotateImage = useCallback(() => {
     const src = rotatedImage || image;
@@ -912,7 +910,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
       )}
       
       <Card $expanded={isExpanded}>
-        <ResponsiveRow>
+        <InputRow>
           <InputGroup>
             <Label>Width ({unit})</Label>
             <Input
@@ -951,7 +949,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
               step={unit === 'mm' ? '1' : '0.1'}
             />
           </InputGroup>
-        </ResponsiveRow>
+        </InputRow>
 
         <UnitToggle>
           <UnitButton 
@@ -1009,7 +1007,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
                 <strong>Rectification Preview</strong>
                 <div>
                   <DebugButton 
-                    $primary 
+                      $primary 
                     onClick={handleManualPreview}
                   >
                     Generate Preview
@@ -1039,21 +1037,12 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
           </PreviewSection>
         )}
 
-<SubmitButton
+        <SubmitButton
           $expanded={isExpanded}
           onClick={handleSubmit}
-          disabled={!isValid || uploading || submitting}
+          disabled={!isValid || uploading}
         >
-          {submitting ? (
-            <>
-              <Spinner />
-              Please wait...
-            </>
-          ) : uploading ? (
-            'Processing...'
-          ) : (
-            'Continue to Layout'
-          )}
+          {uploading ? 'Processing...' : 'Continue to Layout'}
         </SubmitButton>
       </Card>
     </SetupContainer>

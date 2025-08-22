@@ -1,12 +1,12 @@
 // LayoutDesigner.styles.js
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 // import { LAYOUT_CONSTANTS } from './LayoutDesigner.constants'; // Unused, commented out
 
-// --- Responsive Breakpoints (Centralized) ---
+// --- Responsive Breakpoints ---
 const breakpoints = {
-  small: '480px', // Mobile
-  medium: '768px', // Tablet
-  large: '1024px' // Desktop
+  small: '480px',   // Mobile phones
+  medium: '768px',  // Tablets
+  large: '1024px'   // Desktops
 };
 
 const media = {
@@ -18,7 +18,7 @@ const media = {
 // --- Main Container ---
 export const DesignerContainer = styled.div`
   width: 100%;
-  /* Adjust height calculation */
+  /* Adjust height calculation based on viewport and navbar */
   height: calc(100vh - 80px);
   display: flex;
   flex-direction: column;
@@ -33,7 +33,7 @@ export const DesignerContainer = styled.div`
   }
 
   ${media.medium} {
-    height: calc(100vh - 70px);
+    height: calc(100vh - 70px); /* Adjusted for mobile/tablet navbar */
     padding: 0.75rem;
     gap: 0.75rem;
   }
@@ -41,7 +41,7 @@ export const DesignerContainer = styled.div`
   ${media.small} {
     padding: 0.5rem;
     gap: 0.5rem;
-    height: calc(100vh - 60px); /* Adjust if mobile navbar height differs */
+    height: calc(100vh - 60px); /* Further adjust if needed */
   }
 `;
 
@@ -53,19 +53,17 @@ export const BinCarousel = styled.div`
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   overflow: hidden;
   flex-shrink: 0;
-  /* Adjust height calculation for different screens */
+  /* Responsive height */
   height: calc(12vh - 20px);
   width: 100%;
-  border: ${props =>
-    props.isCarouselDropTarget ? '2px dashed #4f46e5' : '2px solid transparent'};
-  background: ${props => (props.isCarouselDropTarget ? '#f0f9ff' : 'white')};
+  border: ${props => props.isCarouselDropTarget ? '2px dashed #4f46e5' : '2px solid transparent'};
+  background: ${props => props.isCarouselDropTarget ? '#f0f9ff' : 'white'};
   transition: all 0.3s ease;
   box-sizing: border-box;
   position: relative;
   display: flex;
   flex-direction: column;
 
-  /* Dynamic pattern when ready for drop */
   &::before {
     content: '';
     position: absolute;
@@ -73,34 +71,28 @@ export const BinCarousel = styled.div`
     left: 0;
     right: 0;
     bottom: 0;
-    background: ${props =>
-      props.isCarouselDropTarget
-        ? 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(79, 70, 229, 0.1) 10px, rgba(79, 70, 229, 0.1) 20px)'
-        : 'none'};
+    background: ${props => props.isCarouselDropTarget ?
+      'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(79, 70, 229, 0.1) 10px, rgba(79, 70, 229, 0.1) 20px)' :
+      'none'
+    };
     border-radius: 12px;
     pointer-events: none;
-    opacity: ${props => (props.isCarouselDropTarget ? 1 : 0)};
+    opacity: ${props => props.isCarouselDropTarget ? 1 : 0};
     transition: opacity 0.3s ease;
-    animation: ${props =>
-      props.isCarouselDropTarget ? 'movePattern 2s linear infinite' : 'none'};
+    animation: ${props => props.isCarouselDropTarget ? 'movePattern 2s linear infinite' : 'none'};
   }
 
   @keyframes movePattern {
-    0% {
-      background-position: 0 0;
-    }
-    100% {
-      background-position: 28px 28px;
-    }
+    0% { background-position: 0 0; }
+    100% { background-position: 28px 28px; }
   }
 
   ${media.medium} {
-    padding: 0;
     height: calc(10vh - 15px);
   }
 
   ${media.small} {
-    height: calc(9vh - 12px); /* Further adjust for small screens */
+    height: calc(9vh - 12px);
   }
 
   h3 {
@@ -126,7 +118,7 @@ export const CarouselContent = styled.div`
   display: flex;
   gap: 0.75rem;
   min-width: min-content;
-  /* Adjust padding */
+  /* Responsive padding */
   padding: 0 1rem 0.5rem 1rem;
   justify-content: center; /* Always center */
   align-items: center;
@@ -148,10 +140,10 @@ export const CarouselContent = styled.div`
 
   p {
     transition: opacity 0.6s ease-in-out, max-height 0.6s ease-in-out;
-    max-height: ${props => (props.hasBins ? '0' : '2rem')};
-    opacity: ${props => (props.hasBins ? 0 : 1)};
+    max-height: ${props => props.hasBins ? '0' : '2rem'};
+    opacity: ${props => props.hasBins ? 0 : 1};
     overflow: hidden;
-    font-size: 0.8rem; /* Adjust empty state text size */
+    font-size: 0.8rem;
 
     ${media.small} {
       font-size: 0.7rem;
@@ -165,10 +157,10 @@ export const CarouselHeader = styled.h3`
   transition: opacity 0.6s ease-in-out, max-height 0.6s ease-in-out;
   position: relative;
   z-index: 1;
-  max-height: ${props => (props.hasBins ? '0' : '2rem')};
-  opacity: ${props => (props.hasBins ? 0 : 1)};
+  max-height: ${props => props.hasBins ? '0' : '2rem'};
+  opacity: ${props => props.hasBins ? 0 : 1};
   overflow: hidden;
-  /* Adjust padding */
+  /* Responsive padding */
   padding: 0.5rem 1rem 0 1rem;
 
   ${media.medium} {
@@ -187,7 +179,7 @@ export const CarouselHeader = styled.h3`
 // --- Drawer/Grid Container ---
 export const DrawerContainer = styled.div`
   background: white;
-  /* Adjust padding */
+  /* Responsive padding */
   padding: 1rem;
   border-radius: 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
@@ -212,11 +204,11 @@ export const DrawerContainer = styled.div`
 export const GridSection = styled.div`
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: visible; /* Allow elements to show outside if needed */
   min-width: 0;
   position: relative;
   align-items: center;
-  width: 100%; /* Ensure it takes full width */
+  width: 100%;
 `;
 
 export const GridAndPanelContainer = styled.div`
@@ -239,10 +231,12 @@ export const GridContainer = styled.div`
   overflow: visible;
   flex: 1;
   height: 100%;
-  width: 100%; /* Ensure it takes full width */
+  width: 100%;
 `;
 
 // --- Action Buttons ---
+// Note: ActionButtonsContainer seems to be defined but not directly used in provided JSX.
+// If used elsewhere, this definition can be kept/adjusted.
 export const ActionButtonsContainer = styled.div`
   display: flex;
   flex-direction: column;
@@ -268,7 +262,7 @@ export const GridWrapper = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Adjust padding */
+  /* Responsive padding */
   padding: 1rem;
   background: #f8fafc;
   border-radius: 8px;
@@ -276,7 +270,7 @@ export const GridWrapper = styled.div`
   height: 100%;
   max-width: 100%;
   max-height: 100%;
-  overflow: visible;
+  overflow: visible; /* Allow action buttons/elements to show outside */
   position: relative;
   box-sizing: border-box;
 
@@ -290,6 +284,7 @@ export const GridWrapper = styled.div`
 `;
 
 export const GridBoundingBox = styled.div`
+  /* Unified bounding box using explicit width and height */
   width: ${props => props.width}px;
   height: ${props => props.height}px;
   position: relative;
@@ -298,7 +293,6 @@ export const GridBoundingBox = styled.div`
   background: #ffffff;
   overflow: hidden;
   box-sizing: border-box;
-  /* Ensure it can shrink if needed on small screens */
   max-width: 100%;
   max-height: 100%;
 `;
@@ -332,14 +326,12 @@ export const GridCell = styled.div`
   background: rgba(248, 250, 252, 0.1);
   /* Cell size is controlled by Grid component props */
   position: relative;
-  pointer-events: none;
+  pointer-events: none; /* Don't interfere with drag and drop */
   box-sizing: border-box;
   border-right: 1px solid rgba(226, 232, 240, 0.3);
   border-bottom: 1px solid rgba(226, 232, 240, 0.3);
-  border-top: ${props =>
-    props.$hasTopEmphasis ? '2px solid rgba(148, 163, 184, 0.7)' : 'none'};
-  border-left: ${props =>
-    props.$hasLeftEmphasis ? '2px solid rgba(148, 163, 184, 0.7)' : 'none'};
+  border-top: ${props => props.$hasTopEmphasis ? '2px solid rgba(148, 163, 184, 0.7)' : 'none'};
+  border-left: ${props => props.$hasLeftEmphasis ? '2px solid rgba(148, 163, 184, 0.7)' : 'none'};
 
   &:hover {
     background: rgba(241, 245, 249, 0.2);
@@ -356,12 +348,11 @@ export const PlacedBin = styled.div`
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  /* Adjust font size for responsiveness */
+  /* Responsive font size */
   font-size: 0.7rem;
-  cursor: ${props => (props.$isDragging ? 'grabbing' : 'grab')};
+  cursor: ${props => props.$isDragging ? 'grabbing' : 'grab'};
   transition: all 0.2s;
   z-index: 15;
-  /* Adjust border thickness */
   border: 1.5px solid ${props => {
     const color = props.$color || '#3b82f6';
     const hex = color.replace('#', '');
@@ -371,32 +362,32 @@ export const PlacedBin = styled.div`
     const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 30);
     return `rgb(${r}, ${g}, ${b})`;
   }};
-  opacity: ${props => (props.$isDragging ? 0.6 : 1)};
-  transform: ${props => (props.$isDragging ? 'scale(1.05)' : 'scale(1)')};
+  opacity: ${props => props.$isDragging ? 0.6 : 1};
+  transform: ${props => props.$isDragging ? 'scale(1.05)' : 'scale(1)'};
   pointer-events: auto;
+  min-width: 20px; /* Minimum touch target size */
+  min-height: 20px;
 
   &:hover {
-    transform: ${props =>
-      props.$isDragging ? 'scale(1.05)' : 'scale(1.02)'};
+    transform: ${props => props.$isDragging ? 'scale(1.05)' : 'scale(1.02)'};
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
-  ${props =>
-    props.$selected &&
-    `
+  ${props => props.$selected && `
     border-color: #fbbf24;
     box-shadow: 0 0 0 2px #fbbf24;
   `}
 
-  /* Adjust font size on small screens */
   ${media.small} {
     font-size: 0.6rem;
+    min-width: 18px;
+    min-height: 18px;
   }
 `;
 
 // --- Buttons ---
 export const PrimaryButton = styled.button`
-  padding: 0.6rem 0.9rem; /* Slightly reduced padding */
+  padding: 0.6rem 0.9rem;
   background: #4f46e5;
   color: white;
   border: none;
@@ -407,7 +398,6 @@ export const PrimaryButton = styled.button`
   white-space: nowrap;
   min-width: 0;
   width: 100%;
-  /* Adjust font size */
   font-size: 0.8rem;
 
   &:hover:not(:disabled) {
@@ -427,9 +417,9 @@ export const PrimaryButton = styled.button`
   }
 
   ${media.small} {
-    padding: 0.45rem 0.6rem; /* Further reduced for small screens */
+    padding: 0.45rem 0.6rem;
     font-size: 0.7rem;
-    border-radius: 6px; /* Slightly smaller radius */
+    border-radius: 6px;
   }
 `;
 
@@ -468,16 +458,13 @@ export const SecondaryButton = styled.button`
 // --- Drawing and Drop Shadows ---
 export const DrawingPreview = styled.div`
   position: absolute;
-  /* Adjust border thickness */
   border: 1.5px dashed #4f46e5;
   background: rgba(79, 70, 229, 0.1);
   pointer-events: none;
   z-index: 8;
   border-radius: 2px;
 
-  ${props =>
-    props.$error &&
-    `
+  ${props => props.$error && `
     border-color: #ef4444;
     background: rgba(239, 68, 68, 0.1);
   `}
@@ -496,18 +483,15 @@ export const DrawingOverlay = styled.div`
 
 export const DropShadow = styled.div`
   position: absolute;
-  /* Adjust border thickness */
   border: 1.5px dashed #10b981;
   background: rgba(16, 185, 129, 0.15);
   pointer-events: none;
   z-index: 10;
   border-radius: 4px;
-  opacity: ${props => (props.$visible ? 1 : 0)};
+  opacity: ${props => props.$visible ? 1 : 0};
   transition: opacity 0.2s ease;
 
-  ${props =>
-    props.$error &&
-    `
+  ${props => props.$error && `
     border-color: #ef4444;
     background: rgba(239, 68, 68, 0.15);
   `}
@@ -521,7 +505,6 @@ export const ErrorNotification = styled.div`
   transform: translate(-50%, -50%);
   background: #fee2e2;
   color: #dc2626;
-  /* Adjust padding */
   padding: 0.8rem 1.2rem;
   border-radius: 8px;
   border: 1px solid #fecaca;
@@ -529,7 +512,7 @@ export const ErrorNotification = styled.div`
   font-weight: 500;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   animation: centerFadeIn 0.3s ease-out;
-  font-size: 0.9rem; /* Adjust font size */
+  font-size: 0.9rem;
 
   ${media.small} {
     padding: 0.6rem 1rem;
@@ -538,14 +521,8 @@ export const ErrorNotification = styled.div`
   }
 
   @keyframes centerFadeIn {
-    from {
-      opacity: 0;
-      transform: translate(-50%, -50%) scale(0.9);
-    }
-    to {
-      opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
-    }
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   }
 `;
 
@@ -572,38 +549,25 @@ export const CenterErrorMessage = styled.div`
   }
 
   @keyframes centerFadeIn {
-    from {
-      opacity: 0;
-      transform: translate(-50%, -50%) scale(0.9);
-    }
-    to {
-      opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
-    }
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   }
   @keyframes centerFadeOut {
-    to {
-      opacity: 0;
-      transform: translate(-50%, -50%) scale(0.9);
-    }
+    to { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
   }
 `;
 
 // --- Instruction Text ---
 export const InstructionText = styled.p`
   text-align: center;
-  /* Adjust margins */
-  margin: 0.25rem 0 0 0;
+  margin: 0.25rem 0 0 0; /* Adjust top margin */
   color: #6b7280;
-  /* Adjust font size */
   font-size: 0.65rem;
   max-width: 100%;
   word-wrap: break-word;
-  /* Adjust padding */
   padding: 0 0.5rem;
-  line-height: 1.2; /* Slightly increase line height */
-  /* Allow it to grow/shrink */
-  height: auto;
+  line-height: 1.2;
+  height: auto; /* Allow it to grow */
   min-height: 1.2rem;
   overflow: hidden;
 
@@ -616,10 +580,10 @@ export const InstructionText = styled.p`
   }
 `;
 
-// --- Main Layout Columns ---
+// --- Main Layout Columns (Key Responsive Part) ---
 export const LayoutMainColumns = styled.div`
   display: grid;
-  /* Refined column template for larger screens */
+  /* Responsive column layout */
   grid-template-columns: minmax(140px, 18%) 1fr minmax(280px, 28%);
   gap: 1rem;
   width: 100%;
@@ -635,15 +599,14 @@ export const LayoutMainColumns = styled.div`
   }
 
   ${media.medium} {
-    /* Switch to a more balanced layout on tablet */
     grid-template-columns: minmax(120px, 15%) 1fr minmax(250px, 32%);
     gap: 0.8rem;
   }
 
+  /* Switch to single column layout on small screens */
   ${media.small} {
-    /* Stack columns vertically on mobile */
-    grid-template-columns: 1fr;
-    grid-auto-rows: max-content min-content auto min-content; /* Define row behavior */
+    grid-template-columns: 1fr; /* Single column */
+    grid-auto-rows: max-content min-content auto min-content min-content; /* Define row behavior */
     height: auto;
     gap: 0.7rem;
   }
@@ -656,13 +619,13 @@ export const LeftColumn = styled.div`
   position: sticky; /* Keep action buttons accessible */
   top: 0.5rem;
   align-self: start;
-  height: fit-content; /* Adjust height dynamically */
+  height: fit-content;
 
   ${media.small} {
     position: static; /* Remove sticky on mobile */
-    order: 4; /* Move action buttons to the bottom on mobile */
+    order: 4; /* Move action buttons to the bottom */
     gap: 0.5rem;
-    /* Make buttons horizontal on mobile if needed */
+    /* Optional: Make buttons horizontal */
     /* flex-direction: row;
     flex-wrap: wrap;
     justify-content: center; */
@@ -686,15 +649,13 @@ export const CenterColumn = styled.div`
 export const RightColumn = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.8rem; /* Adjust gap */
+  gap: 0.8rem;
   min-width: 0;
   height: 100%;
 
   ${media.small} {
     order: 3; /* Bin options and 3D view below grid on mobile */
     gap: 0.6rem;
-    /* IMPORTANT: REMOVED the rule that hides BinOptionsAccordion */
-    /* The accordion will now stack below the 3D view */
   }
 `;
 
@@ -703,7 +664,6 @@ export const ReviewButtonContainer = styled.div`
   width: 100%;
   display: flex;
   justify-content: center;
-  /* Adjust padding */
   padding: 0.7rem 0 1rem;
 
   ${media.small} {
@@ -714,10 +674,10 @@ export const ReviewButtonContainer = styled.div`
 
 export const ReviewButton = styled(PrimaryButton)`
   width: 70%;
-  font-size: 0.85rem; /* Adjust font size */
+  font-size: 0.85rem;
 
   ${media.small} {
-    width: 85%; /* Make it wider on mobile */
+    width: 85%;
     font-size: 0.8rem;
     padding: 0.5rem 0.7rem;
   }
@@ -726,14 +686,13 @@ export const ReviewButton = styled(PrimaryButton)`
 // --- 3D View ---
 export const Drawer3DWrapper = styled.div`
   flex: 0 0 auto;
-  /* Adjust height */
   height: 30%;
-  min-height: 160px; /* Adjusted min height */
+  min-height: 160px;
   position: relative;
 
   ${media.small} {
-    min-height: 140px; /* Smaller on mobile */
-    height: 25%; /* Adjust height percentage */
+    min-height: 140px;
+    height: 25%;
     order: 2; /* 3D view comes second on mobile */
   }
 `;
@@ -749,26 +708,22 @@ export const BinOptionsAccordion = styled.div`
   overflow: hidden; /* Allow scrolling if content is large */
   display: flex;
   flex-direction: column;
-  transition: opacity 0.35s ease, transform 0.3s ease; /* Added transform */
-  opacity: ${props => (props.$open ? 1 : 0)};
-  pointer-events: ${props => (props.$open ? 'auto' : 'none')};
-  /* Slide in/out effect */
-  transform: ${props => (props.$open ? 'translateY(0)' : 'translateY(10px)')};
-  /* Add internal padding for content */
-  padding: 1rem;
+  transition: opacity 0.35s ease, transform 0.3s ease;
+  opacity: ${props => props.$open ? 1 : 0};
+  pointer-events: ${props => props.$open ? 'auto' : 'none'};
+  transform: ${props => props.$open ? 'translateY(0)' : 'translateY(10px)'};
+  padding: 1rem; /* Add internal padding */
 
   ${media.medium} {
-    padding: 0.8rem; /* Adjust padding */
+    padding: 0.8rem;
     border-radius: 10px;
   }
 
   ${media.small} {
-    /* Ensure it's visible and styled for mobile */
-    /* Removed display: none */
     padding: 0.7rem;
     border-radius: 8px;
-    order: 3; /* Explicitly set order if needed (inherits from parent) */
-    /* Optional: Add a max-height and internal scroll if content is very long */
+    order: 3; /* Explicitly set order (inherits from parent) */
+    /* Optional: Add max-height and internal scroll for very long content */
     /* max-height: 30vh;
     overflow-y: auto; */
   }
