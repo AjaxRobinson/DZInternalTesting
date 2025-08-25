@@ -1,14 +1,15 @@
 // LayoutDesigner.styles.js
 import styled from 'styled-components';
+// import { LAYOUT_CONSTANTS } from './LayoutDesigner.constants'; // Unused, commented out
 
-
+// --- Responsive Breakpoints (Centralized) ---
 const breakpoints = {
   small: '480px', // Mobile
   medium: '768px', // Tablet
   large: '1024px' // Desktop
 };
 
-export const media = {
+const media = {
   small: `@media (max-width: ${breakpoints.small})`,
   medium: `@media (max-width: ${breakpoints.medium})`,
   large: `@media (max-width: ${breakpoints.large})`
@@ -17,6 +18,7 @@ export const media = {
 // --- Main Container ---
 export const DesignerContainer = styled.div`
   width: 100%;
+  /* Adjust height calculation */
   height: calc(100vh - 80px);
   display: flex;
   flex-direction: column;
@@ -24,7 +26,7 @@ export const DesignerContainer = styled.div`
   padding: 1rem;
   margin: 0;
   box-sizing: border-box;
-  overflow-y: auto;
+  overflow: hidden;
 
   * {
     box-sizing: border-box;
@@ -39,7 +41,7 @@ export const DesignerContainer = styled.div`
   ${media.small} {
     padding: 0.5rem;
     gap: 0.5rem;
-    height: calc(100vh - 60px);
+    height: calc(100vh - 60px); /* Adjust if mobile navbar height differs */
   }
 `;
 
@@ -99,16 +101,6 @@ export const BinCarousel = styled.div`
 
   ${media.small} {
     height: calc(9vh - 12px); /* Further adjust for small screens */
-
-    /* Enhance drop target feedback on small screens */
-    border: ${props =>
-      props.isCarouselDropTarget ? '3px dashed #4f46e5' : '2px solid transparent'};
-    &::before {
-      background: ${props =>
-        props.isCarouselDropTarget
-          ? 'repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(79, 70, 229, 0.15) 8px, rgba(79, 70, 229, 0.15) 16px)'
-          : 'none'};
-    }
   }
 
   h3 {
@@ -233,7 +225,7 @@ export const GridAndPanelContainer = styled.div`
   align-items: flex-start;
   justify-content: center;
   width: 100%;
-  height: auto;
+  height: 100%;
   max-width: 100%;
   overflow: visible;
 `;
@@ -246,8 +238,8 @@ export const GridContainer = styled.div`
   max-width: 100%;
   overflow: visible;
   flex: 1;
-  height: auto;
-  width: 100%; 
+  height: 100%;
+  width: 100%; /* Ensure it takes full width */
 `;
 
 // --- Action Buttons ---
@@ -276,13 +268,14 @@ export const GridWrapper = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Adjust padding */
   padding: 1rem;
   background: #f8fafc;
   border-radius: 8px;
   width: 100%;
-  height: 50dvh;
+  height: 100%;
   max-width: 100%;
-  max-height: 50dvh;
+  max-height: 100%;
   overflow: visible;
   position: relative;
   box-sizing: border-box;
@@ -381,8 +374,6 @@ export const PlacedBin = styled.div`
   opacity: ${props => (props.$isDragging ? 0.6 : 1)};
   transform: ${props => (props.$isDragging ? 'scale(1.05)' : 'scale(1)')};
   pointer-events: auto;
-  min-width: 20px; /* Minimum touch target size */
-  min-height: 20px; /* Minimum touch target size */
 
   &:hover {
     transform: ${props =>
@@ -400,8 +391,6 @@ export const PlacedBin = styled.div`
   /* Adjust font size on small screens */
   ${media.small} {
     font-size: 0.6rem;
-    min-width: 20px; /* Ensure minimum size on small screens */
-    min-height: 20px;
   }
 `;
 
@@ -420,7 +409,6 @@ export const PrimaryButton = styled.button`
   width: 100%;
   /* Adjust font size */
   font-size: 0.8rem;
-  min-height: 44px; /* Ensure adequate touch target */
 
   &:hover:not(:disabled) {
     background: #4338ca;
@@ -442,7 +430,6 @@ export const PrimaryButton = styled.button`
     padding: 0.45rem 0.6rem; /* Further reduced for small screens */
     font-size: 0.7rem;
     border-radius: 6px; /* Slightly smaller radius */
-    min-height: 44px; /* Maintain touch target */
   }
 `;
 
@@ -459,7 +446,6 @@ export const SecondaryButton = styled.button`
   min-width: 0;
   width: 100%;
   font-size: 0.8rem;
-  min-height: 44px; /* Ensure adequate touch target */
 
   &:hover {
     background: #4f46e5;
@@ -476,7 +462,6 @@ export const SecondaryButton = styled.button`
     padding: 0.45rem 0.6rem;
     font-size: 0.7rem;
     border-radius: 6px;
-    min-height: 44px; /* Maintain touch target */
   }
 `;
 
@@ -596,7 +581,6 @@ export const CenterErrorMessage = styled.div`
       transform: translate(-50%, -50%) scale(1);
     }
   }
-
   @keyframes centerFadeOut {
     to {
       opacity: 0;
@@ -640,10 +624,10 @@ export const LayoutMainColumns = styled.div`
   gap: 1rem;
   width: 100%;
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   align-items: start;
   position: relative;
-  height: 100dvh;
+  height: 100%;
 
   ${media.large} {
     grid-template-columns: minmax(130px, 16%) 1fr minmax(270px, 30%);
@@ -659,9 +643,8 @@ export const LayoutMainColumns = styled.div`
   ${media.small} {
     /* Stack columns vertically on mobile */
     grid-template-columns: 1fr;
-    grid-auto-rows: max-content min-content auto min-content max-content; /* Define row behavior */
-    height: 100dvh;
-    overflow: auto;
+    grid-auto-rows: max-content min-content auto min-content; /* Define row behavior */
+    height: auto;
     gap: 0.7rem;
   }
 `;
@@ -737,7 +720,6 @@ export const ReviewButton = styled(PrimaryButton)`
     width: 85%; /* Make it wider on mobile */
     font-size: 0.8rem;
     padding: 0.5rem 0.7rem;
-    min-height: 44px; /* Ensure touch target */
   }
 `;
 

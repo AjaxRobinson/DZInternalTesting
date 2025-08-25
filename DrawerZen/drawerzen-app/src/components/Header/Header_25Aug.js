@@ -1,7 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
 import { useLocation, Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 const HeaderContainer = styled.header`
   background: white;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -82,22 +81,8 @@ const MobileStep = styled.div`
     color: #6b7280;
   }
 `;
-const LogoutButton = styled.button`
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-left: 1rem;
-
-  &:hover {
-    background-color: #c82333;
-  }
-`;
 
 export default function Header() {
-    const { signOut } = useAuth();
   const location = useLocation();
   
   const steps = [
@@ -126,9 +111,6 @@ export default function Header() {
               {index + 1}. {step.label}
             </NavLink>
           ))}
-          <LogoutButton onClick={signOut}>
-          Logout
-        </LogoutButton>
         </Nav>
         <MobileStep>
           Step {currentIndex} of {steps.length}

@@ -13,9 +13,6 @@ import Checkout from './components/Checkout/Checkout';
 import OrderSuccess from './components/OrderSuccess/OrderSuccess';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary.js';
 import SupabaseService from './services/SupabaseService';
-import Login from './components/Login/Login';
-import ProtectedRoute from './components/ProtectedRoute';
-import { AuthProvider } from './contexts/AuthContext';
 
 // Hooks
 import { useDataManagement } from './hooks/useDataManagement'; 
@@ -254,21 +251,17 @@ function App() {
   ];
 
   return (
-    <AuthProvider>
-      <DndProvider backend={HTML5Backend}>
-        <Router>
-          <AppContainer>
-            <ProtectedRoute>
-              <Header />
-              <AppContent 
-                dataManager={dataManager}
-                defaultBins={defaultBins}
-              />
-            </ProtectedRoute>
-          </AppContainer>
-        </Router>
-      </DndProvider>
-    </AuthProvider>
+    <DndProvider backend={HTML5Backend}>
+      <Router>
+        <AppContainer>
+          <Header />
+          <AppContent 
+            dataManager={dataManager}
+            defaultBins={defaultBins}
+          />
+        </AppContainer>
+      </Router>
+    </DndProvider>
   );
 }
 
@@ -347,9 +340,6 @@ function AppContent({ dataManager, defaultBins }) {
 
           {/* Order Success Page */}
           <Route path="/order-success" element={<OrderSuccess />} />
-          
-          {/* Login Route - accessible without authentication */}
-          <Route path="/login" element={<Login />} />
           
           {/* Catch-all route - redirect any unrecognized paths to root */}
           <Route path="*" element={<Navigate to="/" replace />} />

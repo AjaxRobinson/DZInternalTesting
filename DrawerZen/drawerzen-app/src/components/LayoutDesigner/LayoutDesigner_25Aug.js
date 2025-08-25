@@ -26,8 +26,7 @@ import {
   ReviewButtonContainer,
   ReviewButton,
   Drawer3DWrapper,
-  BinOptionsAccordion,
-  media
+  BinOptionsAccordion
 } from './LayoutDesigner.styles';
 
 // Custom hooks
@@ -784,7 +783,7 @@ useEffect(() => {
                       width={gridBounds?.width || 0}
                       height={gridBounds?.height || 0}
                     >
-                      {/* <div style={{
+                      <div style={{
                         position: 'absolute',
                         top: '-2.2rem',
                         left: '50%',
@@ -792,11 +791,10 @@ useEffect(() => {
                         fontWeight: 'bold',
                         color: '#374151',
                         fontSize: '1rem',
-                        zIndex: 100,
-                        ...(window.innerWidth <= 480 ? { fontSize: '0.8rem',top: '-1.8rem',}: {})
+                        zIndex: 100
                       }}>
                         Grid: {gridCols} cols × {gridRows} rows (min: 1, max: 15)
-                      </div> */}
+                      </div>
                       <BinGrid
                         ref={drop}
                         gridCols={gridCols}
