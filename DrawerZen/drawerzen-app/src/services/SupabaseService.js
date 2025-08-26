@@ -1,256 +1,543 @@
-// Supabase client wrapper for uploads + metadata insert
+// SupabaseService.js (corrected version)
 import { createClient } from '@supabase/supabase-js';
-import { ORDER_STATUS_LIST, ORDER_STATUSES, normalizeStatus } from '../constants/orderStatuses';
 
-let SUPABASE_URL = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_URL) || '';
-let SUPABASE_ANON_KEY = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_ANON_KEY) || '';
-// Runtime fallback for static hosting (e.g., GitHub Pages)
-if ((!SUPABASE_URL || !SUPABASE_ANON_KEY) && typeof window !== 'undefined' && window.__SUPABASE_CONFIG__) {
-  SUPABASE_URL = SUPABASE_URL || window.__SUPABASE_CONFIG__.url;
-  SUPABASE_ANON_KEY = SUPABASE_ANON_KEY || window.__SUPABASE_CONFIG__.anonKey;
-}
-const SUPABASE_BUCKET = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_BUCKET) || 'drawerzen';
-const SUPABASE_TABLE = (typeof process !== 'undefined' && process.env && (process.env.REACT_APP_SUPABASE_RECTIFY_TABLE || process.env.REACT_APP_SUPABASE_TABLE)) || 'dataset';
-const SUPABASE_ORDERS_TABLE = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_ORDERS_TABLE) || 'orders';
-const SUPABASE_DEBUG = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SUPABASE_DEBUG) || '';
-const ORDER_INITIAL_STATUS = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_ORDER_INITIAL_STATUS) || '';
-const ORDER_ALLOWED_STATUSES = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_ORDER_ALLOWED_STATUSES) || '';
-const ORDER_REQUIRE_IMAGE = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_ORDER_REQUIRE_IMAGE) || '';
+// Configuration with proper fallbacks and validation
+const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || 'https://dobvwnfsglqzdnsymzsp.supabase.co';
+const SUPABASE_ANON_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvYnZ3bmZzZ2xxemRuc3ltenNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5NTQ2MDYsImV4cCI6MjA3MDUzMDYwNn0.5hAAfdqya9ggpIC2cUdCHrruNxEN4TMaMWuR0KhSdqs';
+const SUPABASE_BUCKET = process.env.REACT_APP_SUPABASE_BUCKET || 'drawerzen';
+const SUPABASE_TABLE = process.env.REACT_APP_SUPABASE_TABLE || 'dataset';
+const SUPABASE_ORDERS_TABLE = process.env.REACT_APP_SUPABASE_ORDERS_TABLE || 'orders';
+const SUPABASE_BINS_TABLE = process.env.REACT_APP_SUPABASE_BINS_TABLE || 'bins';
+const SUPABASE_PROJECTS_TABLE = process.env.REACT_APP_SUPABASE_PROJECTS_TABLE || 'drawer_projects';
 
 class SupabaseService {
   constructor() {
-  this.bucket = SUPABASE_BUCKET;
-  this.table = SUPABASE_TABLE; // legacy dataset table for rectification metadata
-  this.ordersTable = SUPABASE_ORDERS_TABLE;
-    if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-      try {
-        this.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        this.enabled = true;
-        if (SUPABASE_DEBUG) {
-          const safeUrl = SUPABASE_URL.replace(/([a-zA-Z0-9._-]{6}).+/, '$1***');
-          const safeKey = SUPABASE_ANON_KEY.slice(0, 6) + '***';
-          // Provide a one-time snapshot so we can confirm which env source populated values
-          if (typeof window !== 'undefined' && !window.__SUPABASE_ENV_SNAPSHOT) {
-            window.__SUPABASE_ENV_SNAPSHOT = { url: safeUrl, bucket: this.bucket, table: this.table, ordersTable: this.ordersTable };
-            console.info('[SupabaseService] Initialized with env snapshot', window.__SUPABASE_ENV_SNAPSHOT);
-          }
-        }
-      } catch (e) {
-        console.warn('Supabase init failed', e);
-        this.client = null;
-        this.enabled = false;
-      }
-    } else {
+    this.bucket = SUPABASE_BUCKET;
+    this.table = SUPABASE_TABLE;
+    this.ordersTable = SUPABASE_ORDERS_TABLE;
+    this.binsTable = SUPABASE_BINS_TABLE;
+    this.projectsTable = SUPABASE_PROJECTS_TABLE;
+    
+    // Validate configuration
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.warn('Missing Supabase URL or Anon Key');
       this.client = null;
       this.enabled = false;
-      if (typeof window !== 'undefined') {
-        const missing = [];
-        if (!SUPABASE_URL) missing.push('REACT_APP_SUPABASE_URL');
-        if (!SUPABASE_ANON_KEY) missing.push('REACT_APP_SUPABASE_ANON_KEY');
-        // Only log once
-        if (!window.__SUPABASE_DISABLED_LOGGED) {
-          window.__SUPABASE_DISABLED_LOGGED = true;
-          console.warn('[SupabaseService] Disabled. Missing env vars:', missing.join(', ') || 'none');
-        }
-      }
+      return;
     }
-  }
-
-  isEnabled() { return !!this.enabled; }
-
-  async uploadImage(path, blob, contentType = 'image/jpeg') {
-    if (!this.enabled) return { success: false, error: 'Supabase not configured' };
-    const { data, error } = await this.client.storage.from(this.bucket).upload(path, blob, { contentType, upsert: true });
-    if (error) {
-      if (SUPABASE_DEBUG) console.error('[SupabaseService] uploadImage error', { path, error });
-      return { success: false, error };
-    }
-    const { data: pub } = this.client.storage.from(this.bucket).getPublicUrl(path);
-    if (SUPABASE_DEBUG) console.debug('[SupabaseService] uploadImage success', { path, publicUrl: pub?.publicUrl });
-    return { success: true, data, publicUrl: pub?.publicUrl };
-  }
-
-  async insertRecord(record) { // backwards compatible (dataset)
-    return this.insertInto(this.table, record);
-  }
-
-  async insertInto(tableName, record) {
-    if (!this.enabled) return { success: false, error: 'Supabase not configured' };
+    
     try {
-      // Wrap in array only if needed – supabase-js accepts object or array
-      const { data, error } = await this.client.from(tableName).insert(record).select();
+      this.client = createClient(SUPABASE_URL.trim(), SUPABASE_ANON_KEY.trim());
+      this.enabled = true;
+      console.log('✅ Supabase DB Connection Success');
+    } catch (error) {
+      console.error('❌ Supabase initialization failed:', error);
+      this.client = null;
+      this.enabled = false;
+    }
+  }
+
+  /**
+   * Check if Supabase service is properly configured
+   * @returns {boolean} Service enabled status
+   */
+  isEnabled() {
+    return this.enabled && this.client !== null;
+  }
+
+  /**
+   * Upload image to Supabase storage
+   * @param {string} path - Storage path
+   * @param {Blob} blob - Image blob
+   * @param {string} contentType - MIME type
+   * @returns {Promise<Object>} Upload result
+   */
+  async uploadImage(path, blob, contentType = 'image/jpeg') {
+    if (!this.isEnabled()) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+    
+    try {
+      const { data, error } = await this.client.storage
+        .from(this.bucket)
+        .upload(path, blob, { 
+          contentType, 
+          upsert: true 
+        });
+      
       if (error) {
-          // Distinguish missing table (404) vs policy
-          if (error.code === 'PGRST116' || /not found/i.test(error.message || '')) {
-            if (SUPABASE_DEBUG) console.error('[SupabaseService] table not found', tableName, error);
-            return { success: false, error: { message: `Table ${tableName} not found (check env var)`, original: error } };
-          }
-        const errMsg = (error.message || '').toLowerCase();
-        const isSelectPolicyIssue = errMsg.includes('permission') || errMsg.includes('policy') || errMsg.includes('rls') || errMsg.includes('select');
-        if (isSelectPolicyIssue) {
-          // Retry without .select() so that lack of SELECT policy doesn't mask a successful INSERT
-            if (SUPABASE_DEBUG) console.warn('[SupabaseService] insert select failed – retrying without select', { tableName, error });
-          const retry = await this.client.from(tableName).insert(record); // no select
-          if (retry.error) {
-            if (SUPABASE_DEBUG) console.error('[SupabaseService] insert retry failed', { tableName, error: retry.error });
-            return { success: false, error: retry.error };
-          }
-          if (SUPABASE_DEBUG) console.debug('[SupabaseService] insert success (no return due to missing SELECT policy)', { tableName });
-          return { success: true, data: null, note: 'Inserted without returning (no select policy)' };
-        }
-        if (SUPABASE_DEBUG) console.error('[SupabaseService] insert error', { tableName, error, record });
+        console.error('❌ Image upload failed:', error);
         return { success: false, error };
       }
-      if (SUPABASE_DEBUG) console.debug('[SupabaseService] insert success', { tableName, data });
-      return { success: true, data };
-    } catch (e) {
-      if (SUPABASE_DEBUG) console.error('[SupabaseService] insert exception', { tableName, error: e, record });
-      return { success: false, error: e };
+      
+      const { data: publicUrlData } = this.client.storage
+        .from(this.bucket)
+        .getPublicUrl(path);
+      
+      return { 
+        success: true, 
+        data, 
+        publicUrl: publicUrlData?.publicUrl 
+      };
+    } catch (error) {
+      console.error('❌ Image upload error:', error);
+      return { success: false, error };
     }
   }
 
+  /**
+   * Insert record with duplicate handling (uses sample_id for dataset table)
+   * @param {Object} record - Record to insert
+   * @returns {Promise<Object>} Insert result
+   */
+  async insertRecord(record) {
+    return this.insertIntoWithDuplicateCheck(this.table, record, 'sample_id');
+  }
+
+  /**
+   * Insert into table with duplicate checking and user confirmation
+   * @param {string} tableName - Target table name
+   * @param {Object} record - Record to insert
+   * @param {string} duplicateCheckField - Field to check for duplicates (default: 'sample_id' for dataset table)
+   * @returns {Promise<Object>} Insert result
+   */
+  async insertIntoWithDuplicateCheck(tableName, record, duplicateCheckField = 'sample_id') {
+    if (!this.isEnabled()) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    try {
+      // Check for existing record with same sample_id
+      const { data: existingRecords, error: checkError } = await this.client
+        .from(tableName)
+        .select('*')
+        .eq(duplicateCheckField, record[duplicateCheckField]);
+
+      if (checkError) {
+        console.error(`❌ Duplicate check failed for ${tableName}:`, checkError);
+        return { success: false, error: checkError };
+      }
+
+      // If duplicate found, ask user for confirmation
+      if (existingRecords && existingRecords.length > 0) {
+        const existingRecord = existingRecords[0];
+        const userConfirmed = window.confirm(
+          `A record with the ${duplicateCheckField} "${record[duplicateCheckField]}" already exists. Do you want to update it?`
+        );
+
+        if (userConfirmed) {
+          // Update existing record
+          const { data, error } = await this.client
+            .from(tableName)
+            .update(record)
+            .eq('id', existingRecord.id)
+            .select();
+
+          if (error) {
+            console.error(`❌ Record update failed for ${tableName}:`, error);
+            return { success: false, error };
+          }
+
+          console.log(`✅ Record updated in ${tableName}:`, data[0]);
+          return { 
+            success: true, 
+            data, 
+            updated: true,
+            message: 'Record updated successfully' 
+          };
+        } else {
+          return { 
+            success: false, 
+            cancelled: true,
+            message: 'Operation cancelled by user' 
+          };
+        }
+      }
+
+      // No duplicate, proceed with insertion
+      const { data, error } = await this.client
+        .from(tableName)
+        .insert(record)
+        .select();
+
+      if (error) {
+        console.error(`❌ Record insertion failed for ${tableName}:`, error);
+        return { success: false, error };
+      }
+
+      console.log(`✅ Record inserted into ${tableName}:`, data[0]);
+      return { 
+        success: true, 
+        data,
+        inserted: true,
+        message: 'Record inserted successfully' 
+      };
+    } catch (error) {
+      console.error(`❌ Record operation error for ${tableName}:`, error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Insert record without duplicate checking
+   * @param {string} tableName - Target table name
+   * @param {Object|Array} record - Record(s) to insert
+   * @returns {Promise<Object>} Insert result
+   */
+  async insertInto(tableName, record) {
+    if (!this.isEnabled()) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    try {
+      const { data, error } = await this.client
+        .from(tableName)
+        .insert(record)
+        .select();
+
+      if (error) {
+        console.error(`❌ Record insertion failed for ${tableName}:`, error);
+        return { success: false, error };
+      }
+
+      console.log(`✅ Records inserted into ${tableName}:`, data);
+      return { success: true, data };
+    } catch (error) {
+      console.error(`❌ Record insertion error for ${tableName}:`, error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Insert order record
+   * @param {Object} orderRecord - Order data
+   * @returns {Promise<Object>} Insert result
+   */
   async insertOrder(orderRecord) {
     return this.insertInto(this.ordersTable, orderRecord);
   }
 
-  // Generate a unique session id (lightweight, client side)
-  generateUniqueSessionId() {
+ /**
+ * Save bins for a project
+ * @param {string} projectId - Project UUID
+ * @param {Array} bins - Array of bin objects
+ * @returns {Promise<Object>} Save result
+ */
+async saveBins(projectId, bins) {
+    if (!this.isEnabled()) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+  
     try {
-      if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-        const buf = new Uint32Array(2);
-        crypto.getRandomValues(buf);
-        return 'sess_' + Date.now().toString(36) + '_' + Array.from(buf).map(n => n.toString(36)).join('');
+      // First, delete existing bins for this project
+      const { error: deleteError } = await this.client
+        .from(this.binsTable)
+        .delete()
+        .eq('project_id', projectId);
+  
+      if (deleteError) {
+        console.error('❌ Failed to delete existing bins:', deleteError);
+        return { success: false, error: deleteError };
       }
-    } catch (e) { /* ignore */ }
-    return 'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+  
+      // If no bins to save, return success
+      if (!bins || bins.length === 0) {
+        console.log(`✅ No bins to save for project ${projectId}`);
+        return { success: true, data: [] };
+      }
+  
+      // Prepare bins data for insertion - generate NEW unique IDs for all bins
+      const binsData = bins.map(bin => ({
+        id: this.generateUUID(), // ALWAYS generate new ID to avoid duplicates
+        project_id: projectId,
+        x_mm: bin.x,
+        y_mm: bin.y,
+        width_mm: bin.width,
+        length_mm: bin.length,
+        height_mm: bin.height || 21,
+        color: bin.color || '#F5E6C8',
+        colorway: bin.colorway || 'cream',
+        shadow_board: bin.shadowBoard || false,
+        name: bin.name || `Bin ${this.generateUUID().substring(0, 8)}`
+      }));
+  
+      // Insert new bins
+      const { data, error } = await this.client
+        .from(this.binsTable)
+        .insert(binsData)
+        .select();
+  
+      if (error) {
+        console.error('❌ Failed to save bins:', error);
+        return { success: false, error };
+      }
+  
+      console.log(`✅ ${binsData.length} bins saved for project ${projectId}`);
+      return { success: true, data };
+    } catch (error) {
+      console.error('❌ Error saving bins:', error);
+      return { success: false, error };
+    }
   }
 
   /**
-   * submitOrder mirrors the provided Order submission example:
-   * - Validates required fields
-   * - Sets default status
-   * - Generates session_id when absent
-   * - Inserts and returns the inserted row (if SELECT policy exists)
-   * @param {Object} orderData - order object without id/created_at
+   * Get bins by project ID
+   * @param {string} projectId - Project UUID
+   * @returns {Promise<Object>} Query result
    */
-  async submitOrder(orderData) {
-    if (!this.enabled) return { success: false, error: 'Supabase not configured' };
-    if (!orderData || typeof orderData !== 'object') return { success: false, error: 'Invalid order data' };
-
-    const mutable = { ...orderData };
-  const requiredFields = ['drawer_dimensions_mm', 'shipping_address'];
-  if (ORDER_REQUIRE_IMAGE) requiredFields.push('source_image');
-    for (const field of requiredFields) {
-      if (mutable[field] == null || mutable[field] === '') {
-        return { success: false, error: new Error(`Missing required field: ${field}`) };
-      }
+  async getBinsByProjectId(projectId) {
+    if (!this.isEnabled()) {
+      return { success: false, error: 'Supabase not configured' };
     }
-
-    // Enforce drawer_dimensions_mm structure (width, length, depth as numbers)
-    if (mutable.drawer_dimensions_mm) {
-      const dims = mutable.drawer_dimensions_mm;
-      const dimKeys = ['width','length','depth'];
-      const bad = dimKeys.filter(k => typeof dims[k] !== 'number' || Number.isNaN(dims[k]));
-      if (bad.length) {
-        return { success: false, error: new Error(`Invalid drawer_dimensions_mm.${bad.join(', ')} (must be numbers)`) };
-      }
-    }
-
-    // Enforce shipping_address structure
-    if (mutable.shipping_address) {
-      const addr = mutable.shipping_address;
-      const requiredAddr = ['street','city','state','zip','country'];
-      const missingAddr = requiredAddr.filter(k => !addr[k] || (typeof addr[k] === 'string' && addr[k].trim() === ''));
-      if (missingAddr.length) {
-        return { success: false, error: new Error(`shipping_address missing fields: ${missingAddr.join(', ')}`) };
-      }
-    }
-
-    // Source image strictly required if ORDER_REQUIRE_IMAGE or spec demands
-    if (!mutable.source_image && ORDER_REQUIRE_IMAGE) {
-      return { success: false, error: new Error('Missing required field: source_image') };
-    }
-
-    // Status normalization using centralized constant list (env list still optional override)
-    let allowedStatuses = ORDER_STATUS_LIST;
-    if (ORDER_ALLOWED_STATUSES) {
-      const fromEnv = ORDER_ALLOWED_STATUSES.split(/[,|]/).map(s => s.trim().toLowerCase()).filter(Boolean);
-      if (fromEnv.length) allowedStatuses = fromEnv;
-    }
-  const initial = ORDER_INITIAL_STATUS && allowedStatuses.includes(ORDER_INITIAL_STATUS) ? ORDER_INITIAL_STATUS : ORDER_STATUSES.PENDING;
-    mutable.status = normalizeStatus(mutable.status || initial);
-    if (!allowedStatuses.includes(mutable.status)) {
-      if (SUPABASE_DEBUG) console.warn('[SupabaseService] Status not in allowed set, coercing', { provided: mutable.status, allowed: allowedStatuses });
-      mutable.status = allowedStatuses[0];
-    }
-    if (!mutable.session_id) mutable.session_id = this.generateUniqueSessionId();
-    // If orders.id column is UUID NOT NULL without default, generate a UUID client-side to avoid 22P02.
-    if (mutable.id == null) {
-      try {
-        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-          mutable.id = crypto.randomUUID();
-        } else if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-          const buf = new Uint8Array(16);
-          crypto.getRandomValues(buf);
-          // RFC4122 v4 formatting
-          buf[6] = (buf[6] & 0x0f) | 0x40;
-          buf[8] = (buf[8] & 0x3f) | 0x80;
-          const hex = [...buf].map(b => b.toString(16).padStart(2, '0')).join('');
-          mutable.id = `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
-        } else {
-          // Fallback pseudo-UUID (not cryptographically strong)
-            const rnd = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).slice(1);
-          mutable.id = `${rnd()}${rnd()}-${rnd()}-${rnd()}-${rnd()}-${rnd()}${rnd()}${rnd()}`;
-        }
-      } catch (_) {
-        // Worst-case: leave id undefined and let DB attempt default (will error if none)
-        delete mutable.id;
-      }
-    } else {
-      // If provided id is not valid UUID format and column expects UUID, remove to let DB assign default
-      if (typeof mutable.id === 'number' || (typeof mutable.id === 'string' && !/^[0-9a-fA-F-]{32,36}$/.test(mutable.id))) {
-        delete mutable.id;
-      }
-    }
-    // Let DB default handle created_at unless caller supplies; do not force here
 
     try {
-      const { data, error } = await this.client.from(this.ordersTable).insert(mutable).select();
+      const { data, error } = await this.client
+        .from(this.binsTable)
+        .select('*')
+        .eq('project_id', projectId);
+
       if (error) {
-        // Handle status check constraint dynamically (23514)
-        if (error.code === '23514' && /status/i.test(error.message || '') && /constraint/i.test(error.message || '')) {
-          // Attempt with other allowed statuses
-          for (const candidate of allowedStatuses) {
-            if (candidate === mutable.status) continue;
-            try {
-              const retryAttempt = await this.client.from(this.ordersTable).insert({ ...mutable, status: candidate }).select();
-              if (!retryAttempt.error) {
-                if (SUPABASE_DEBUG) console.warn('[SupabaseService] submitOrder succeeded after status retry', { original: mutable.status, used: candidate });
-                return { success: true, data: retryAttempt.data && retryAttempt.data[0], note: 'Status coerced due to constraint' };
-              }
-            } catch (_) { /* ignore */ }
-          }
-        }
-        // Fallback behavior replicates insertInto logic if SELECT policy missing
-        const errMsg = (error.message || '').toLowerCase();
-        const isSelectPolicyIssue = errMsg.includes('permission') || errMsg.includes('policy') || errMsg.includes('rls') || errMsg.includes('select');
-        if (isSelectPolicyIssue) {
-          if (SUPABASE_DEBUG) console.warn('[SupabaseService] submitOrder select blocked – retrying without select', error);
-          const retry = await this.client.from(this.ordersTable).insert(mutable); // no select
-          if (retry.error) {
-            if (SUPABASE_DEBUG) console.error('[SupabaseService] submitOrder retry failed', retry.error);
-            return { success: false, error: retry.error };
-          }
-          return { success: true, data: null, note: 'Inserted without returning (no select policy)' };
-        }
-        if (SUPABASE_DEBUG) console.error('[SupabaseService] submitOrder error', error);
+        console.error('❌ Failed to fetch bins:', error);
         return { success: false, error };
       }
-      return { success: true, data: data && data[0] };
-    } catch (e) {
-      if (SUPABASE_DEBUG) console.error('[SupabaseService] submitOrder exception', e);
-      return { success: false, error: e };
+
+      return { success: true, data };
+    } catch (error) {
+      console.error('❌ Error fetching bins:', error);
+      return { success: false, error };
     }
+  }
+
+  /**
+   * Delete bins by project ID
+   * @param {string} projectId - Project UUID
+   * @returns {Promise<Object>} Delete result
+   */
+  async deleteBinsByProjectId(projectId) {
+    if (!this.isEnabled()) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    try {
+      const { data, error } = await this.client
+        .from(this.binsTable)
+        .delete()
+        .eq('project_id', projectId);
+
+      if (error) {
+        console.error('❌ Failed to delete bins:', error);
+        return { success: false, error };
+      }
+
+      console.log(`✅ Bins deleted for project ${projectId}`);
+      return { success: true, data };
+    } catch (error) {
+      console.error('❌ Error deleting bins:', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Get all records from a table
+   * @param {string} tableName - Table name
+   * @returns {Promise<Object>} Query result
+   */
+  async getAllRecords(tableName) {
+    if (!this.isEnabled()) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    try {
+      const { data, error } = await this.client
+        .from(tableName)
+        .select('*');
+
+      if (error) {
+        console.error(`❌ Failed to fetch records from ${tableName}:`, error);
+        return { success: false, error };
+      }
+
+      return { success: true, data };
+    } catch (error) {
+      console.error(`❌ Error fetching records from ${tableName}:`, error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Get record by sample_id (for dataset table)
+   * @param {string} sampleId - Sample ID
+   * @returns {Promise<Object>} Query result
+   */
+  async getDatasetBySampleId(sampleId) {
+    if (!this.isEnabled()) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    try {
+      const { data, error } = await this.client
+        .from(this.table)
+        .select('*')
+        .eq('sample_id', sampleId)
+        .single();
+
+      if (error) {
+        console.error('❌ Failed to fetch dataset record:', error);
+        return { success: false, error };
+      }
+
+      return { success: true, data };
+    } catch (error) {
+      console.error('❌ Error fetching dataset record:', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Create or verify project exists
+   * @param {string} projectId - Project UUID
+   * @param {Object} projectData - Project data
+   * @returns {Promise<Object>} Project result
+   */
+  async createOrVerifyProject(projectId, projectData = {}) {
+    if (!this.isEnabled()) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    try {
+      // Check if project already exists (without using .single() to avoid 406 error)
+      const { data: existingProjects, error: checkError } = await this.client
+        .from(this.projectsTable)
+        .select('*')
+        .eq('id', projectId)
+        .limit(1);
+
+      // Handle actual errors (not the "no rows" case)
+      if (checkError) {
+        // PGRST116 is the "no rows" error which is expected when project doesn't exist
+        if (checkError.code !== 'PGRST116') {
+          console.error('Error checking project:', checkError);
+          return { success: false, error: checkError };
+        }
+        // If it's PGRST116 (no rows), continue to create project
+      }
+
+      // If project exists, return it
+      if (existingProjects && existingProjects.length > 0) {
+        console.log('✅ Project already exists:', existingProjects[0].id);
+        return { success: true, data: existingProjects[0] };
+      }
+
+      // Create new project with required fields
+      const newProjectData = {
+        id: projectId,
+        sample_id: projectData.sample_id || `sample_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        drawer_width_mm: projectData.drawer_width_mm || 320,
+        drawer_length_mm: projectData.drawer_length_mm || 320,
+        drawer_height_mm: projectData.drawer_height_mm || 21,
+        status: projectData.status || 'draft',
+        unit: projectData.unit || 'mm',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      // Only add session_id if it's provided
+      if (projectData.session_id) {
+        newProjectData.session_id = projectData.session_id;
+      }
+
+      const { data, error } = await this.client
+        .from(this.projectsTable)
+        .insert(newProjectData)
+        .select();
+
+      if (error) {
+        console.error('❌ Error creating project:', error);
+        return { success: false, error };
+      }
+
+      console.log('✅ Project created successfully:', data[0]);
+      return { success: true, data: data[0] };
+    } catch (error) {
+      console.error('❌ Error in createOrVerifyProject:', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Create or get session
+   * @param {string} sessionId - Session ID (optional)
+   * @returns {Promise<Object>} Session result
+   */
+  async createOrGetSession(sessionId = null) {
+    if (!this.isEnabled()) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    try {
+      let sessionIdToUse = sessionId;
+      
+      // If no session ID provided, generate one or get from localStorage
+      if (!sessionIdToUse) {
+        sessionIdToUse = localStorage.getItem('currentSessionId');
+        if (!sessionIdToUse) {
+          sessionIdToUse = this.generateUUID();
+          localStorage.setItem('currentSessionId', sessionIdToUse);
+        }
+      }
+
+      // Check if session exists
+      const { data: existingSessions, error: checkError } = await this.client
+        .from('sessions')
+        .select('*')
+        .eq('id', sessionIdToUse)
+        .limit(1);
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking session:', checkError);
+        return { success: false, error: checkError };
+      }
+
+      // If session exists, return it
+      if (existingSessions && existingSessions.length > 0) {
+        return { success: true, data: existingSessions[0] };
+      }
+
+      // Create new session
+      const sessionData = {
+        id: sessionIdToUse,
+        started_at: new Date().toISOString(),
+        last_active_at: new Date().toISOString()
+        // Add other session fields as needed
+      };
+
+      const { data, error } = await this.client
+        .from('sessions')
+        .insert(sessionData)
+        .select();
+
+      if (error) {
+        console.error('Error creating session:', error);
+        return { success: false, error };
+      }
+
+      return { success: true, data: data[0] };
+    } catch (error) {
+      console.error('Error in createOrGetSession:', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Generate UUID helper method
+   * @returns {string} Generated UUID
+   */
+  generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
   }
 }
 
