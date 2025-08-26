@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 // Configuration with proper fallbacks and validation
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || 'https://dobvwnfsglqzdnsymzsp.supabase.co';
 const SUPABASE_ANON_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvYnZ3bmZzZ2xxemRuc3ltenNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5NTQ2MDYsImV4cCI6MjA3MDUzMDYwNn0.5hAAfdqya9ggpIC2cUdCHrruNxEN4TMaMWuR0KhSdqs';
-const SUPABASE_BUCKET = 'drawerzen' || process.env.REACT_APP_SUPABASE_BUCKET;
+const SUPABASE_BUCKET = 'drawerzen' || process.env.REACT_APP_SUPABASE_BUCKET ;
 const SUPABASE_TABLE = process.env.REACT_APP_SUPABASE_TABLE || 'dataset';
 const SUPABASE_ORDERS_TABLE = process.env.REACT_APP_SUPABASE_ORDERS_TABLE || 'orders';
 const SUPABASE_BINS_TABLE = process.env.REACT_APP_SUPABASE_BINS_TABLE || 'bins';
@@ -62,15 +62,14 @@ class SupabaseService {
     return this.enabled && this.client !== null;
   }
 
-
-/**
- * Upload image to Supabase storage (private bucket)
- * @param {string} path - Storage path
- * @param {Blob} blob - Image blob
- * @param {string} contentType - MIME type
- * @returns {Promise<Object>} Upload result
- */
-async uploadImage(path, blob, contentType = 'image/jpeg') {
+  /**
+   * Upload image to Supabase storage (private bucket)
+   * @param {string} path - Storage path
+   * @param {Blob} blob - Image blob
+   * @param {string} contentType - MIME type
+   * @returns {Promise<Object>} Upload result
+   */
+  async uploadImage(path, blob, contentType = 'image/jpeg') {
     if (!this.isEnabled()) {
       return { success: false, error: 'Supabase not configured' };
     }
@@ -149,6 +148,7 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
       return { success: false, error };
     }
   }
+
   /**
    * Insert record with duplicate handling (uses sample_id for dataset table)
    * @param {Object} record - Record to insert
@@ -171,11 +171,15 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
     }
 
     try {
+      // Add user_id to record if user is authenticated
+      const userId = await this.getCurrentUserId();
+      const recordWithUser = userId ? { ...record, user_id: userId } : record;
+
       // Check for existing record with same sample_id
       const { data: existingRecords, error: checkError } = await this.client
         .from(tableName)
         .select('*')
-        .eq(duplicateCheckField, record[duplicateCheckField]);
+        .eq(duplicateCheckField, recordWithUser[duplicateCheckField]);
 
       if (checkError) {
         console.error(`❌ Duplicate check failed for ${tableName}:`, checkError);
@@ -186,14 +190,14 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
       if (existingRecords && existingRecords.length > 0) {
         const existingRecord = existingRecords[0];
         const userConfirmed = window.confirm(
-          `A record with the ${duplicateCheckField} "${record[duplicateCheckField]}" already exists. Do you want to update it?`
+          `A record with the ${duplicateCheckField} "${recordWithUser[duplicateCheckField]}" already exists. Do you want to update it?`
         );
 
         if (userConfirmed) {
           // Update existing record
           const { data, error } = await this.client
             .from(tableName)
-            .update(record)
+            .update(recordWithUser)
             .eq('id', existingRecord.id)
             .select();
 
@@ -221,7 +225,7 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
       // No duplicate, proceed with insertion
       const { data, error } = await this.client
         .from(tableName)
-        .insert(record)
+        .insert(recordWithUser)
         .select();
 
       if (error) {
@@ -316,20 +320,32 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
         return { success: true, data: [] };
       }
   
+      // Get current user ID
+      const userId = await this.getCurrentUserId();
+  
       // Prepare bins data for insertion - generate NEW unique IDs for all bins
-      const binsData = bins.map(bin => ({
-        id: this.generateUUID(), // ALWAYS generate new ID to avoid duplicates
-        project_id: projectId,
-        x_mm: bin.x,
-        y_mm: bin.y,
-        width_mm: bin.width,
-        length_mm: bin.length,
-        height_mm: bin.height || 21,
-        color: bin.color || '#F5E6C8',
-        colorway: bin.colorway || 'cream',
-        shadow_board: bin.shadowBoard || false,
-        name: bin.name || `Bin ${this.generateUUID().substring(0, 8)}`
-      }));
+      const binsData = bins.map(bin => {
+        const binData = {
+          id: this.generateUUID(), // ALWAYS generate new ID to avoid duplicates
+          project_id: projectId,
+          x_mm: bin.x,
+          y_mm: bin.y,
+          width_mm: bin.width,
+          length_mm: bin.length,
+          height_mm: bin.height || 21,
+          color: bin.color || '#F5E6C8',
+          colorway: bin.colorway || 'cream',
+          shadow_board: bin.shadowBoard || false,
+          name: bin.name || `Bin ${this.generateUUID().substring(0, 8)}`
+        };
+        
+        // Add user_id if user is authenticated
+        if (userId) {
+          binData.user_id = userId;
+        }
+        
+        return binData;
+      });
   
       // Insert new bins
       const { data, error } = await this.client
@@ -361,10 +377,18 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
     }
 
     try {
-      const { data, error } = await this.client
+      const userId = await this.getCurrentUserId();
+      let query = this.client
         .from(this.binsTable)
         .select('*')
         .eq('project_id', projectId);
+      
+      // If user is authenticated, filter by user_id
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('❌ Failed to fetch bins:', error);
@@ -389,10 +413,18 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
     }
 
     try {
-      const { data, error } = await this.client
+      const userId = await this.getCurrentUserId();
+      let query = this.client
         .from(this.binsTable)
         .delete()
         .eq('project_id', projectId);
+      
+      // If user is authenticated, filter by user_id
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('❌ Failed to delete bins:', error);
@@ -488,12 +520,21 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
     }
 
     try {
+      const userId = await this.getCurrentUserId();
+      
       // Check if project already exists
-      const { data: existingProjects, error: checkError } = await this.client
+      let projectQuery = this.client
         .from(this.projectsTable)
         .select('*')
         .eq('id', projectId)
         .limit(1);
+      
+      // If user is authenticated, filter by user_id
+      if (userId) {
+        projectQuery = projectQuery.eq('user_id', userId);
+      }
+
+      const { data: existingProjects, error: checkError } = await projectQuery;
 
       // Handle actual errors (not the "no rows" case)
       if (checkError) {
@@ -510,9 +551,6 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
         console.log('✅ Project already exists:', existingProjects[0].id);
         return { success: true, data: existingProjects[0] };
       }
-
-      // Get current user ID
-      const userId = await this.getCurrentUserId();
 
       // Create new project with required fields
       const newProjectData = {
@@ -577,12 +615,21 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
         }
       }
 
+      const userId = await this.getCurrentUserId();
+      
       // Check if session exists
-      const { data: existingSessions, error: checkError } = await this.client
+      let sessionQuery = this.client
         .from('sessions')
         .select('*')
         .eq('id', sessionIdToUse)
         .limit(1);
+      
+      // If user is authenticated, filter by user_id
+      if (userId) {
+        sessionQuery = sessionQuery.eq('user_id', userId);
+      }
+
+      const { data: existingSessions, error: checkError } = await sessionQuery;
 
       if (checkError && checkError.code !== 'PGRST116') {
         console.error('Error checking session:', checkError);
@@ -593,9 +640,6 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
       if (existingSessions && existingSessions.length > 0) {
         return { success: true, data: existingSessions[0] };
       }
-
-      // Get current user ID
-      const userId = await this.getCurrentUserId();
 
       // Create new session
       const sessionData = {
