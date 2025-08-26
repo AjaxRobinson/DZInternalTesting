@@ -152,6 +152,23 @@ const Hamburger = styled.div`
 
 export default function Header() {
   const { signOut } = useAuth();
+  // In components that display images
+//   const { user } = useAuth();
+//   const [imageUrl, setImageUrl] = useState('');
+
+//   useEffect(() => {
+//   const loadImage = async () => {
+//     if (user && imagePath) {
+//       const result = await SupabaseService.getPrivateImageUrl(imagePath);
+//       if (result.success) {
+//         setImageUrl(result.publicUrl);
+//       }
+//     }
+//   };
+  
+//   loadImage();
+// }, [user, imagePath]);
+
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 

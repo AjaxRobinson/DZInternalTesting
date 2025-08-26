@@ -1,9 +1,10 @@
+// SupabaseService.js (corrected version)
 import { createClient } from '@supabase/supabase-js';
 
 // Configuration with proper fallbacks and validation
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || 'https://dobvwnfsglqzdnsymzsp.supabase.co';
 const SUPABASE_ANON_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvYnZ3bmZzZ2xxemRuc3ltenNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5NTQ2MDYsImV4cCI6MjA3MDUzMDYwNn0.5hAAfdqya9ggpIC2cUdCHrruNxEN4TMaMWuR0KhSdqs';
-const SUPABASE_BUCKET = 'drawerzen' || process.env.REACT_APP_SUPABASE_BUCKET;
+const SUPABASE_BUCKET = 'drawerzen' || process.env.REACT_APP_SUPABASE_BUCKET ;
 const SUPABASE_TABLE = process.env.REACT_APP_SUPABASE_TABLE || 'dataset';
 const SUPABASE_ORDERS_TABLE = process.env.REACT_APP_SUPABASE_ORDERS_TABLE || 'orders';
 const SUPABASE_BINS_TABLE = process.env.REACT_APP_SUPABASE_BINS_TABLE || 'bins';
@@ -37,24 +38,6 @@ class SupabaseService {
   }
 
   /**
-   * Get current user ID (for associating data with users)
-   * @returns {string|null} User ID or null
-   */
-  async getCurrentUserId() {
-    if (!this.isEnabled()) {
-      return null;
-    }
-    
-    try {
-      const { data: { session } } = await this.client.auth.getSession();
-      return session?.user?.id || null;
-    } catch (error) {
-      console.error('Error getting user ID:', error);
-      return null;
-    }
-  }
-
-  /**
    * Check if Supabase service is properly configured
    * @returns {boolean} Service enabled status
    */
@@ -62,32 +45,22 @@ class SupabaseService {
     return this.enabled && this.client !== null;
   }
 
-
-/**
- * Upload image to Supabase storage (private bucket)
- * @param {string} path - Storage path
- * @param {Blob} blob - Image blob
- * @param {string} contentType - MIME type
- * @returns {Promise<Object>} Upload result
- */
-async uploadImage(path, blob, contentType = 'image/jpeg') {
+  /**
+   * Upload image to Supabase storage
+   * @param {string} path - Storage path
+   * @param {Blob} blob - Image blob
+   * @param {string} contentType - MIME type
+   * @returns {Promise<Object>} Upload result
+   */
+  async uploadImage(path, blob, contentType = 'image/jpeg') {
     if (!this.isEnabled()) {
       return { success: false, error: 'Supabase not configured' };
     }
     
     try {
-      // Get current user ID for private path
-      const userId = await this.getCurrentUserId();
-      if (!userId) {
-        return { success: false, error: 'User must be authenticated to upload files' };
-      }
-      
-      // Create user-specific path
-      const userPath = `users/${userId}/${path}`;
-      
       const { data, error } = await this.client.storage
         .from(this.bucket)
-        .upload(userPath, blob, { 
+        .upload(path, blob, { 
           contentType, 
           upsert: true 
         });
@@ -97,58 +70,21 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
         return { success: false, error };
       }
       
-      // Generate signed URL for private access (valid for 1 hour)
-      const { data: signedUrlData, error: signedUrlError } = await this.client.storage
+      const { data: publicUrlData } = this.client.storage
         .from(this.bucket)
-        .createSignedUrl(userPath, 3600); // URL valid for 1 hour
-      
-      if (signedUrlError) {
-        console.error('❌ Signed URL generation failed:', signedUrlError);
-        return { success: false, error: signedUrlError };
-      }
+        .getPublicUrl(path);
       
       return { 
         success: true, 
         data, 
-        publicUrl: signedUrlData.signedUrl,
-        path: userPath
+        publicUrl: publicUrlData?.publicUrl 
       };
     } catch (error) {
       console.error('❌ Image upload error:', error);
       return { success: false, error };
     }
   }
-  
-  /**
-   * Get signed URL for private image
-   * @param {string} path - Image path
-   * @param {number} expiresIn - Expiration time in seconds (default: 1 hour)
-   * @returns {Promise<Object>} Signed URL result
-   */
-  async getPrivateImageUrl(path, expiresIn = 3600) {
-    if (!this.isEnabled()) {
-      return { success: false, error: 'Supabase not configured' };
-    }
-    
-    try {
-      const { data, error } = await this.client.storage
-        .from(this.bucket)
-        .createSignedUrl(path, expiresIn);
-      
-      if (error) {
-        console.error('❌ Signed URL generation failed:', error);
-        return { success: false, error };
-      }
-      
-      return { 
-        success: true, 
-        publicUrl: data.signedUrl 
-      };
-    } catch (error) {
-      console.error('❌ Error generating signed URL:', error);
-      return { success: false, error };
-    }
-  }
+
   /**
    * Insert record with duplicate handling (uses sample_id for dataset table)
    * @param {Object} record - Record to insert
@@ -254,15 +190,9 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
     }
 
     try {
-      // Add user_id to record if user is authenticated
-      const userId = await this.getCurrentUserId();
-      const recordWithUser = Array.isArray(record) 
-        ? record.map(r => userId ? { ...r, user_id: userId } : r)
-        : userId ? { ...record, user_id: userId } : record;
-
       const { data, error } = await this.client
         .from(tableName)
-        .insert(recordWithUser)
+        .insert(record)
         .select();
 
       if (error) {
@@ -287,13 +217,13 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
     return this.insertInto(this.ordersTable, orderRecord);
   }
 
-  /**
-   * Save bins for a project
-   * @param {string} projectId - Project UUID
-   * @param {Array} bins - Array of bin objects
-   * @returns {Promise<Object>} Save result
-   */
-  async saveBins(projectId, bins) {
+ /**
+ * Save bins for a project
+ * @param {string} projectId - Project UUID
+ * @param {Array} bins - Array of bin objects
+ * @returns {Promise<Object>} Save result
+ */
+async saveBins(projectId, bins) {
     if (!this.isEnabled()) {
       return { success: false, error: 'Supabase not configured' };
     }
@@ -418,15 +348,9 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
     }
 
     try {
-      const userId = await this.getCurrentUserId();
-      let query = this.client.from(tableName).select('*');
-      
-      // If user is authenticated, filter by user_id
-      if (userId) {
-        query = query.eq('user_id', userId);
-      }
-
-      const { data, error } = await query;
+      const { data, error } = await this.client
+        .from(tableName)
+        .select('*');
 
       if (error) {
         console.error(`❌ Failed to fetch records from ${tableName}:`, error);
@@ -451,18 +375,11 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
     }
 
     try {
-      const userId = await this.getCurrentUserId();
-      let query = this.client
+      const { data, error } = await this.client
         .from(this.table)
         .select('*')
-        .eq('sample_id', sampleId);
-      
-      // If user is authenticated, filter by user_id
-      if (userId) {
-        query = query.eq('user_id', userId);
-      }
-
-      const { data, error } = await query.single();
+        .eq('sample_id', sampleId)
+        .single();
 
       if (error) {
         console.error('❌ Failed to fetch dataset record:', error);
@@ -488,7 +405,7 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
     }
 
     try {
-      // Check if project already exists
+      // Check if project already exists (without using .single() to avoid 406 error)
       const { data: existingProjects, error: checkError } = await this.client
         .from(this.projectsTable)
         .select('*')
@@ -511,9 +428,6 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
         return { success: true, data: existingProjects[0] };
       }
 
-      // Get current user ID
-      const userId = await this.getCurrentUserId();
-
       // Create new project with required fields
       const newProjectData = {
         id: projectId,
@@ -526,11 +440,6 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
-
-      // Add user_id if user is authenticated
-      if (userId) {
-        newProjectData.user_id = userId;
-      }
 
       // Only add session_id if it's provided
       if (projectData.session_id) {
@@ -594,20 +503,13 @@ async uploadImage(path, blob, contentType = 'image/jpeg') {
         return { success: true, data: existingSessions[0] };
       }
 
-      // Get current user ID
-      const userId = await this.getCurrentUserId();
-
       // Create new session
       const sessionData = {
         id: sessionIdToUse,
         started_at: new Date().toISOString(),
         last_active_at: new Date().toISOString()
+        // Add other session fields as needed
       };
-
-      // Add user_id if user is authenticated
-      if (userId) {
-        sessionData.user_id = userId;
-      }
 
       const { data, error } = await this.client
         .from('sessions')
