@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef ,useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { DndProvider } from 'react-dnd';
@@ -9,12 +9,13 @@ import Header from './components/Header/Header';
 import DrawerSetup from './components/DrawerSetup/DrawerSetup';
 import LayoutDesigner from './components/LayoutDesigner/LayoutDesigner';
 import OrderReview from './components/OrderReview/OrderReview';
-import Login from './components/Login/Login'
 import Checkout from './components/Checkout/Checkout';
 import OrderSuccess from './components/OrderSuccess/OrderSuccess';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary.js';
 import SupabaseService from './services/SupabaseService';
-import { AuthProvider } from './contexts/AuthContext'; // Keep AuthProvider but remove ProtectedRoute
+import Login from './components/Login/Login';
+import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider } from './contexts/AuthContext';
 
 // Hooks
 import { useDataManagement } from './hooks/useDataManagement'; 
@@ -241,7 +242,7 @@ function App() {
   const dataManager = useDataManagement();
 
   // Default available bins
-  const defaultBins = [
+  const defaultBins = useMemo(() => ([
     { id: 1, label: 'Small Square', width: 42, length: 42, color: '#3b82f6' },
     { id: 2, label: 'Small Rectangle', width: 63, length: 42, color: '#10b981' },
     { id: 3, label: 'Medium Square', width: 63, length: 63, color: '#f59e0b' },
@@ -250,18 +251,20 @@ function App() {
     { id: 6, label: 'Large Rectangle', width: 105, length: 63, color: '#ec4899' },
     { id: 7, label: 'Wide Rectangle', width: 126, length: 42, color: '#14b8a6' },
     { id: 8, label: 'Extra Large', width: 105, length: 84, color: '#f97316' },
-  ];
+  ]), []);
 
   return (
     <AuthProvider>
       <DndProvider backend={HTML5Backend}>
         <Router>
           <AppContainer>
-            <Header /> {/* Remove ProtectedRoute wrapper */}
-            <AppContent 
-              dataManager={dataManager}
-              defaultBins={defaultBins}
-            />
+            <ProtectedRoute>
+              <Header />
+              <AppContent 
+                dataManager={dataManager}
+                defaultBins={defaultBins}
+              />
+            </ProtectedRoute>
           </AppContainer>
         </Router>
       </DndProvider>
@@ -269,17 +272,19 @@ function App() {
   );
 }
 
-function AppContent({ dataManager, defaultBins }) {
+const AppContent = React.memo(function AppContent({ dataManager, defaultBins }) {
   const location = useLocation();
   const isLayoutPage = location.pathname === '/layout';
   const { appData, updateDrawerDimensions, updateLayoutConfig, updateOrderData, updateUploadedImage } = dataManager;
   const navUnderlay = location.state?.underlayImage;
+  const lastLayoutLogRef = useRef(0);
+  const DEBUG_LAYOUT = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_DEBUG_LAYOUT === '1');
 
   return (
     <MainContent className={isLayoutPage ? 'layout-page' : ''}>
       <ErrorBoundary>
         <Routes>
-          {/* Step 1: Drawer Dimensions - Now accessible without login */}
+          {/* Step 1: Drawer Dimensions */}
           <Route path="/" element={
             <DrawerSetup 
               onComplete={(data) => {
@@ -341,10 +346,12 @@ function AppContent({ dataManager, defaultBins }) {
               <Navigate to="/review" />
             )
           } />
-          {/* Login Page */}
-  <Route path="/login" element={<Login />} />
+
           {/* Order Success Page */}
           <Route path="/order-success" element={<OrderSuccess />} />
+          
+          {/* Login Route - accessible without authentication */}
+          <Route path="/login" element={<Login />} />
           
           {/* Catch-all route - redirect any unrecognized paths to root */}
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -352,6 +359,6 @@ function AppContent({ dataManager, defaultBins }) {
       </ErrorBoundary>
     </MainContent>
   );
-}
+});
 
 export default App;

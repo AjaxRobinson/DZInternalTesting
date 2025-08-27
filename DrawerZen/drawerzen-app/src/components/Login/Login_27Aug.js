@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
 const LoginContainer = styled.div`
   display: flex;
@@ -76,7 +75,6 @@ const Login = () => {
   const [error, setError] = useState('');
 
   const { signIn, signUp } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -88,11 +86,9 @@ const Login = () => {
         const { error } = await signUp(email, password);
         if (error) throw error;
         alert('Check your email for confirmation!');
-        setIsSignUp(false);
       } else {
         const { error } = await signIn(email, password);
         if (error) throw error;
-        navigate('/');
       }
     } catch (error) {
       setError(error.message || 'An error occurred');

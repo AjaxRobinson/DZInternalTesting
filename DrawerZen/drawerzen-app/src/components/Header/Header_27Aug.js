@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+
 const HeaderContainer = styled.header`
   background: white;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -150,50 +150,46 @@ const Hamburger = styled.div`
   }
 `;
 
+export default function Header() {
+  const { signOut } = useAuth();
+  // In components that display images
+//   const { user } = useAuth();
+//   const [imageUrl, setImageUrl] = useState('');
 
-const AccountButton = styled.button`
-  background-color: #4f46e5;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
+//   useEffect(() => {
+//   const loadImage = async () => {
+//     if (user && imagePath) {
+//       const result = await SupabaseService.getPrivateImageUrl(imagePath);
+//       if (result.success) {
+//         setImageUrl(result.publicUrl);
+//       }
+//     }
+//   };
+  
+//   loadImage();
+// }, [user, imagePath]);
 
-  &:hover {
-    background-color: #4f46e5;
-  }
-`;
-
-const Header = () => {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
-  const handleAccountClick = () => {
-    navigate('/login');
-  };
-  const handleLogoClick = () => {
-    navigate('/');
-  };
   const location = useLocation();
-    const [menuOpen, setMenuOpen] = useState(false);
-  
-    const steps = [
-      { path: '/', label: 'Upload', value: 0 },
-      { path: '/layout', label: 'Layout', value: 25 },
-      { path: '/review', label: 'Review', value: 50 },
-      { path: '/checkout', label: 'Checkout', value: 75 },
-    ];
-  
-    const currentStep = steps.find((step) => step.path === location.pathname) || steps[0];
-    const currentIndex = steps.findIndex((step) => step.path === location.pathname) + 1;
-  
-    const toggleMenu = () => setMenuOpen(!menuOpen);
- return (
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const steps = [
+    { path: '/', label: 'Upload', value: 0 },
+    { path: '/layout', label: 'Layout', value: 25 },
+    { path: '/review', label: 'Review', value: 50 },
+    { path: '/checkout', label: 'Checkout', value: 75 },
+  ];
+
+  const currentStep = steps.find((step) => step.path === location.pathname) || steps[0];
+  const currentIndex = steps.findIndex((step) => step.path === location.pathname) + 1;
+
+  const toggleMenu = () => setMenuOpen(!menuOpen);
+
+  return (
     <>
       <HeaderContainer>
         <HeaderContent>
           <Link to="/" style={{ textDecoration: 'none' }}>
-            <Logo onClick={handleLogoClick} >Drawerzen</Logo>
+            <Logo>Drawerzen</Logo>
           </Link>
 
           <Hamburger onClick={toggleMenu}>
@@ -213,17 +209,7 @@ const Header = () => {
                 {index + 1}. {step.label}
               </NavLink>
             ))}
-            {user ? (
-    <>
-      <LogoutButton onClick={signOut}>
-        Logout
-      </LogoutButton>
-    </>
-  ) : (
-    <AccountButton onClick={handleAccountClick}>
-      My Account
-    </AccountButton>
-  )}
+            <LogoutButton onClick={signOut}>Logout</LogoutButton>
           </Nav>
         </HeaderContent>
         <ProgressBar>
@@ -235,8 +221,5 @@ const Header = () => {
         Step {currentIndex} of {steps.length}
       </MobileStep>
     </>
-  );;
-};
-
-export default Header;
-
+  );
+}
