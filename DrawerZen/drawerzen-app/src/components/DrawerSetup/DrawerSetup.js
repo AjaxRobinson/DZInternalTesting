@@ -998,8 +998,8 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
               imageSrc={image}
               imageFile={originalFile}
               drawerMM={drawerMM}
-              gridCols={gridCols}
-              gridRows={gridRows}
+              gridCols={Math.round(gridCols)}
+              gridRows={Math.round(gridRows)}
               pxPerMM={15}
               onComplete={handleRectifierComplete}
             />

@@ -119,12 +119,12 @@ const PerspectiveGridRectifier = forwardRef(function PerspectiveGridRectifier({
     }));
 
     if (!quadDisplayPx) {
-      const margin = Math.max(12, Math.min(w, h) * 0.03);
+      const margin = Math.max(0, Math.min(w, h) * 0.001);
       const overhang = Math.max(6, Math.min(w, h) * 0.015);
       
       setQuadDisplayPx({
-        topLeft: { x: Math.max(0, x - margin), y: Math.max(0, y - margin + overhang) },
-        topRight: { x: Math.min(cw, x + w + margin), y: Math.max(0, y - margin + overhang) },
+        topLeft: { x: Math.max(0, x - margin), y: Math.max(0, y - margin) },
+        topRight: { x: Math.min(cw, x + w + margin), y: Math.max(0, y - margin) },
         bottomRight: { x: Math.min(cw, x + w + margin), y: Math.min(ch, y + h + margin) },
         bottomLeft: { x: Math.max(0, x - margin), y: Math.min(ch, y + h + margin) }
       });

@@ -323,7 +323,6 @@ export const Grid = styled.div`
   left: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden;
   border-top: 1px solid rgba(226, 232, 240, 0.3);
   border-left: 1px solid rgba(226, 232, 240, 0.3);
   box-sizing: border-box;
