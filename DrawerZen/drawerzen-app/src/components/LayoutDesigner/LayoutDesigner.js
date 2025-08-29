@@ -768,7 +768,10 @@ useEffect(() => {
             <GridAndPanelContainer>
               <GridContainer>
                 <GridSection>
-                  <GridWrapper>
+                  <GridWrapper
+             width={Math.round(gridBounds?.width) || 0}
+             height={Math.round(gridBounds?.height) || 0}
+                  >
                     {errorMessage && (
                       <ErrorNotification style={{ 
                         position: 'absolute', 
@@ -782,8 +785,9 @@ useEffect(() => {
                       </ErrorNotification>
                     )}
                     <GridBoundingBox 
-                      width={gridBounds?.width || 0}
-                      height={gridBounds?.height || 0}
+                      width={Math.round(gridBounds?.width) || 0}
+                      height={Math.round(gridBounds?.height) || 0}
+                      style={backgroundImageStyle}
                     >
                       {/* <div style={{
                         position: 'absolute',
@@ -820,9 +824,6 @@ useEffect(() => {
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
                         underlayImage={underlayImage}
-                        backgroundImageStyle={backgroundImageStyle}
-                        width={gridBounds?.width || 0}
-                        height={gridBounds?.height || 0}
                       />
                     </GridBoundingBox>
                   </GridWrapper>

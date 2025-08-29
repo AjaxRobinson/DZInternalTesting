@@ -467,6 +467,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
   const [cornerDeltas, setCornerDeltas] = useState(null);
   const [croppedImage, setCroppedImage] = useState(null);
   const [underlayImage, setUnderlayImage] = useState(null);
+  const [rectifiedDrawerMM, setRectifiedDrawerMM] = useState(null);
   const [rotatedImage, setRotatedImage] = useState(null);
   const [showUnderlayPreview, setShowUnderlayPreview] = useState(false);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
@@ -654,6 +655,8 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
 
       setCroppedImage(rectUnderlay);
       setUnderlayImage(rectUnderlay);
+      const rectifiedDims = result.drawer_mm || drawerMM; 
+      setRectifiedDrawerMM(rectifiedDims);
 
       const rectifyMeta = {
         quad_px,
@@ -663,7 +666,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
         metrics,
         exif,
         orig_size_px,
-        drawer_mm: { width: drawerMM.width, length: drawerMM.length }
+        drawer_mm: rectifiedDims
       };
 
       if (dataManager) {
@@ -685,6 +688,9 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
     if (rectifierRef.current && image && baseDimensionsMM.width && baseDimensionsMM.length) {
       try {
         rectifyResult = await rectifierRef.current.rectify();
+        if (rectifyResult?.drawer_mm) {
+          setRectifiedDrawerMM(rectifyResult.drawer_mm);
+       }
       } catch (e) {
         console.warn('Rectification failed', e);
       }
@@ -696,7 +702,14 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
       height: parseFloat(baseDimensionsMM.height),
       unit: 'mm'
     };
-  
+    let finalDrawerDimensions = rawDimensions;
+    if (rectifiedDrawerMM && rectifiedDrawerMM.width && rectifiedDrawerMM.length) {
+        finalDrawerDimensions = {
+            ...rawDimensions, // Includes height and unit
+            width: rectifiedDrawerMM.width,
+            length: rectifiedDrawerMM.length
+        };
+    }
     const finalUnderlay = rectifyResult?.underlayImage || underlayImage || croppedImage || image;
   
     // Finalize and save to Supabase only here
@@ -772,7 +785,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
   
     // Finalize navigation
     onComplete({
-      drawerDimensions: rawDimensions,
+      drawerDimensions: finalDrawerDimensions,
       underlayImage: finalUnderlay,
       transform,
       cornerDeltas
@@ -785,7 +798,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
     image, 
     baseDimensionsMM, 
     dataManager, 
-    drawerMM, 
+    // drawerMM, 
     underlayImage, 
     croppedImage, 
     transform, 
@@ -793,7 +806,8 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
     onComplete, 
     navigate,
     originalFile,
-    getClientInfo
+    getClientInfo,
+    rectifiedDrawerMM
   ]);
 
   const handleRotateImage = useCallback(() => {

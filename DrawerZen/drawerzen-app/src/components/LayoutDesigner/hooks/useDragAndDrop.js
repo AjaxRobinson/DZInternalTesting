@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { GRID_SIZE } from '../LayoutDesigner.constants'; // Import GRID_SIZE for clarity
 
 export const useDragAndDrop = (placedBins, setPlacedBins, gridCols, gridRows, cellPixelSize, checkBounds, checkCollision) => {
   const [draggedBin, setDraggedBin] = useState(null);
@@ -15,21 +16,19 @@ export const useDragAndDrop = (placedBins, setPlacedBins, gridCols, gridRows, ce
     setIsCarouselDropTarget(false);
   }, []);
 
-  const handleGridHover = useCallback((x, y) => {
+  // x, y are expected to be in millimeters (representing the top-left corner of the bin)
+  const handleGridHover = useCallback((x_mm, y_mm) => {
     if (!draggedBin) return;
 
-    const newBin = { ...draggedBin, x, y };
+    const newBin = { ...draggedBin, x: x_mm, y: y_mm };
     const isValid = checkBounds(newBin) && !checkCollision(newBin, draggedBin.id);
 
     // Convert millimeter coordinates to pixel positions for shadow display
-    // Calculate pixel size per millimeter based on current grid dimensions
-    const binLength = draggedBin.length;
-    
-    // Use the actual cell pixel size from the current grid layout
-    const pixelX = (x / 21) * cellPixelSize;
-    const pixelY = (y / 21) * cellPixelSize;
-    const pixelWidth = (draggedBin.width / 21) * cellPixelSize;
-    const pixelHeight = (binLength / 21) * cellPixelSize;
+    // This correctly maps mm grid positions to pixel positions within the GridBoundingBox
+    const pixelX = (x_mm / GRID_SIZE) * cellPixelSize;
+    const pixelY = (y_mm / GRID_SIZE) * cellPixelSize;
+    const pixelWidth = (draggedBin.width / GRID_SIZE) * cellPixelSize;
+    const pixelHeight = (draggedBin.length / GRID_SIZE) * cellPixelSize;
 
     setDropShadow({
       left: pixelX,
@@ -39,19 +38,20 @@ export const useDragAndDrop = (placedBins, setPlacedBins, gridCols, gridRows, ce
       visible: true,
       error: !isValid
     });
-  }, [draggedBin, cellPixelSize, checkBounds, checkCollision]);
+  }, [draggedBin, cellPixelSize, checkBounds, checkCollision]); // Added GRID_SIZE dependency if it's imported
 
-  const handleGridDrop = useCallback((x, y) => {
+  // x, y are expected to be in millimeters
+  const handleGridDrop = useCallback((x_mm, y_mm) => {
     if (!draggedBin) return;
 
-    const newBin = { ...draggedBin, x, y };
+    const newBin = { ...draggedBin, x: x_mm, y: y_mm };
     const isValid = checkBounds(newBin) && !checkCollision(newBin, draggedBin.id);
 
     if (isValid) {
-      setPlacedBins(prev => 
-        prev.map(bin => 
-          bin.id === draggedBin.id 
-            ? { ...bin, x, y }
+      setPlacedBins(prev =>
+        prev.map(bin =>
+          bin.id === draggedBin.id
+            ? { ...bin, x: x_mm, y: y_mm } // Store position in mm
             : bin
         )
       );
@@ -85,8 +85,8 @@ export const useDragAndDrop = (placedBins, setPlacedBins, gridCols, gridRows, ce
     isCarouselDropTarget,
     handleDragStart,
     handleDragEnd,
-    handleGridHover,
-    handleGridDrop,
+    handleGridHover, // Receives mm coordinates
+    handleGridDrop,  // Receives mm coordinates
     handleCarouselDrop,
     handleCarouselDragOver,
     handleCarouselDragLeave,

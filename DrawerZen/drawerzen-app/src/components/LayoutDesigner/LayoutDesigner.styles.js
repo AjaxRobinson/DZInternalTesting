@@ -276,16 +276,16 @@ export const GridWrapper = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  // padding: 1rem;
   background: #f8fafc;
-  border-radius: 8px;
-  width: 100%;
-  height: 50dvh;
+  // border-radius: 8px;
+ width: ${props => props.width ? `${props.width}px` : '100%'};
+  height: ${props => props.height ? `${props.height}px` : '100%'};
   max-width: 100%;
-  max-height: 50dvh;
+  max-height: 100%;
   overflow: visible;
   position: relative;
-  box-sizing: border-box;
+  // box-sizing: border-box;
 
   ${media.medium} {
     padding: 0.75rem;
@@ -297,8 +297,8 @@ export const GridWrapper = styled.div`
 `;
 
 export const GridBoundingBox = styled.div`
-  width: ${props => props.width}px;
-  height: ${props => props.height}px;
+width: ${props => props.width ? `${props.width}px` : '100%'};
+  height: ${props => props.height ? `${props.height}px` : '100%'};
   position: relative;
   border: 2px solid #e2e8f0;
   border-radius: 4px;

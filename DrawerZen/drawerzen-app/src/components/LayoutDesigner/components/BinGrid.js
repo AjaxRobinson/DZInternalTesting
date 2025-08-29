@@ -30,8 +30,6 @@ const BinGrid = forwardRef(({
   onMouseUp,
   underlayImage,
   onFocusBin,
-  width,
-  height,
   onBlurBin
 }, ref) => {
   const safeGridCols = Math.max(1, gridCols || 1);
@@ -88,14 +86,6 @@ const BinGrid = forwardRef(({
         if (ref) ref(el);
       }}
       data-grid="true"
-      width={width}
-      height={height}
-      style={{
-        backgroundImage: underlayImage ? `url(${underlayImage})` : 'none',
-        backgroundSize: '100% 100%',
-        backgroundRepeat: 'no-repeat',
-        backgroundPosition: 'center',
-      }}
     >
       {gridCells}
       {/* Drawing overlay */}
