@@ -64,9 +64,6 @@ export default function LayoutDesigner({
   const [centerErrorMessage, setCenterErrorMessage] = useState(null);
   const [remainingBins, setRemainingBins] = useState(() => [...availableBins]);
   const [isSaving, setIsSaving] = useState(false); // Add saving state
-  // add at 28 Aug for testing
-  const [underlayImageDimensions, setUnderlayImageDimensions] = useState({ width: 0, height: 0 });
-
   // Create stable drawer config
   const drawerConfig = useMemo(() => {
     if (!drawerDimensions) return { width: 320, length: 320, maxWidth: 320, maxLength: 320 };
@@ -95,28 +92,6 @@ export default function LayoutDesigner({
     }
   }, [drawerDimensions?.width, drawerDimensions?.length]);
 
-  // add at 28 Aug for testing
-  useEffect(() => {
-    if (!underlayImage) {
-      setUnderlayImageDimensions({ width: 0, height: 0 });
-      return;
-    }
-  
-    const img = new Image();
-    img.onload = () => {
-      console.log(`[LayoutDesigner] Underlay image dimensions: ${img.naturalWidth} x ${img.naturalHeight}`);
-      setUnderlayImageDimensions({
-        width: img.naturalWidth,
-        height: img.naturalHeight
-      });
-      // Ensure grid sizing logic reacts if needed
-    };
-    img.onerror = (err) => {
-      console.error("[LayoutDesigner] Failed to load underlay image:", err);
-      setUnderlayImageDimensions({ width: 0, height: 0 });
-    };
-    img.src = underlayImage;
-  }, [underlayImage]); // Dependency array
 
 
   // Bin management hook with size limits (1-15 units)
