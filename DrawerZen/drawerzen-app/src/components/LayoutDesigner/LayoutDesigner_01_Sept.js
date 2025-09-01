@@ -92,6 +92,8 @@ export default function LayoutDesigner({
     }
   }, [drawerDimensions?.width, drawerDimensions?.length]);
 
+
+
   // Bin management hook with size limits (1-15 units)
   const {
     placedBins,
@@ -342,43 +344,43 @@ useEffect(() => {
           const gridY = Math.floor(y / cellPixelSize);
           
           // Convert to millimeter coordinates
-          const mmX = Math.max(0, gridX * GRID_SIZE);
-          const mmY = Math.max(0, gridY * GRID_SIZE);
+          const mmX = gridX * GRID_SIZE;
+          const mmY = gridY * GRID_SIZE;
           
-          // Get the bin dimensions for shadow
-          let binWidth, binLength;
-          if (item.bin) {
-            // New bin from carousel
-            binWidth = item.bin.width;
-            binLength = item.bin.length;
-          } else if (item.placedBinId) {
-            // Existing bin being moved
-            const existingBin = placedBins.find(bin => bin.id === item.placedBinId);
-            if (existingBin) {
-              binWidth = existingBin.width;
-              binLength = existingBin.length;
-            }
+          // Create virtual dragged bin for carousel items
+          let currentDraggedBin = draggedBin;
+          
+          if (item.bin && !currentDraggedBin) {
+            // Bin from carousel - create temporary dragged bin
+            currentDraggedBin = {
+              id: item.bin.id,
+              width: item.bin.width,
+              length: item.bin.length,
+              x: mmX,
+              y: mmY
+            };
           }
           
-          if (binWidth && binLength) {
-            // Check if placement is valid
-            const isValid = mmX >= 0 && 
-                           mmY >= 0 &&
-                           (mmX + binWidth) <= (gridCols * GRID_SIZE) &&
-                           (mmY + binLength) <= (gridRows * GRID_SIZE) &&
-                           !checkCollision({ 
-                             x: mmX, 
-                             y: mmY, 
-                             width: binWidth, 
-                             length: binLength,
-                             id: item.placedBinId 
-                           }, item.placedBinId);
+          if (currentDraggedBin) {
+            const newBin = { 
+              ...currentDraggedBin, 
+              x: mmX, 
+              y: mmY 
+            };
+            
+            // Check if placement is valid (within 1-15 grid limits)
+            const isValid = checkBounds(newBin) && 
+                           !checkCollision(newBin, currentDraggedBin.id) &&
+                           newBin.x >= 0 && 
+                           newBin.y >= 0 &&
+                           (newBin.x + newBin.width) <= (gridCols * GRID_SIZE) &&
+                           (newBin.y + newBin.length) <= (gridRows * GRID_SIZE);
 
             // Convert to pixel positions for visual feedback
             const pixelX = (mmX / GRID_SIZE) * cellPixelSize;
             const pixelY = (mmY / GRID_SIZE) * cellPixelSize;
-            const pixelWidth = (binWidth / GRID_SIZE) * cellPixelSize;
-            const pixelHeight = (binLength / GRID_SIZE) * cellPixelSize;
+            const pixelWidth = (currentDraggedBin.width / GRID_SIZE) * cellPixelSize;
+            const pixelHeight = (currentDraggedBin.length / GRID_SIZE) * cellPixelSize;
 
             // Update drop shadow for visual feedback
             setDropShadow({
@@ -446,8 +448,8 @@ useEffect(() => {
           if (isValidPlacement(newBin) &&
               newBin.x >= 0 && 
               newBin.y >= 0 &&
-              (newX + newBin.width) <= (gridCols * GRID_SIZE) &&
-              (newY + newBin.length) <= (gridRows * GRID_SIZE)) {
+              (newBin.x + newBin.width) <= (gridCols * GRID_SIZE) &&
+              (newBin.y + newBin.length) <= (gridRows * GRID_SIZE)) {
             pushUndoState();
             addBin(newBin);
             setRemainingBins(prev => prev.filter(bin => bin.id !== item.bin.id));
@@ -465,6 +467,7 @@ useEffect(() => {
     }),
   }), [
     cellPixelSize,
+    draggedBin,
     isValidPlacement,
     pushUndoState,
     moveBin,
@@ -472,23 +475,12 @@ useEffect(() => {
     addBin,
     setRemainingBins,
     JSON.stringify(placedBins),
+    checkBounds,
     checkCollision,
     setDropShadow,
     gridCols,
     gridRows
   ]);
-
-  // Clear drop shadow when not hovering over grid or when dragging ends
-  useEffect(() => {
-    if (!isOver || !draggedBin) {
-      const timer = setTimeout(() => {
-        if (!isOver) {
-          setDropShadow(null);
-        }
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isOver, draggedBin, setDropShadow]);
 
   // Clear drop shadow when not hovering over grid
   useEffect(() => {
@@ -574,159 +566,80 @@ useEffect(() => {
   const handleGenerateBins = useCallback(() => {
     pushUndoState();
     const newBins = [];
-    let binCounter = placedBins.length;
+    let binCounter = 0;
     let currentPlacedBins = [...placedBins];
     
-    // Create a 2D grid to track occupied cells (15x15 max grid)
-    const grid = Array(15).fill().map(() => Array(15).fill(false));
+    let canPlaceMore = true;
+    let iterations = 0;
+    const maxIterations = 200;
     
-    // Mark occupied cells with precise boundary checking
-    currentPlacedBins.forEach(bin => {
-      const startX = Math.floor(bin.x / GRID_SIZE);
-      const startY = Math.floor(bin.y / GRID_SIZE);
-      const endX = Math.ceil((bin.x + bin.width) / GRID_SIZE);
-      const endY = Math.ceil((bin.y + bin.length) / GRID_SIZE);
+    while (canPlaceMore && iterations < maxIterations) {
+      iterations++;
+      canPlaceMore = false;
       
-      for (let x = startX; x < endX && x < 15; x++) {
-        for (let y = startY; y < endY && y < 15; y++) {
-          if (x >= 0 && y >= 0) {
-            grid[x][y] = true;
-          }
-        }
-      }
-    });
-    
-    // Find all available single-cell gaps first
-    const availableCells = [];
-    for (let x = 0; x < Math.min(gridCols, 15); x++) {
-      for (let y = 0; y < Math.min(gridRows, 15); y++) {
-        if (!grid[x][y]) {
-          availableCells.push({ x, y });
-        }
-      }
-    }
-    
-    // Keep trying to place bins until no more can be placed
-    let placedInThisIteration = true;
-    while (placedInThisIteration) {
-      placedInThisIteration = false;
+      // Find all available gaps within 1-15 grid limits
+      const gaps = BinSortingService.findAllGaps(gridCols, gridRows, currentPlacedBins, 2);
       
-      // Sort available cells by position to prioritize filling gaps
-      availableCells.sort((a, b) => {
-        // Prioritize cells in the same row/column
-        if (a.x === b.x) return a.y - b.y;
-        if (a.y === b.y) return a.x - b.x;
-        return a.x - b.x;
-      });
-      
-      // Try to place bins starting from each available cell
-      for (const gap of availableCells) {
-        // Skip if this cell is already occupied
-        if (grid[gap.x][gap.y]) continue;
-        
-        // Try each standard bin size, largest first
-        const sortedBinSizes = [...STANDARD_BIN_SIZES].sort((a, b) => 
-          (b.width * b.length) - (a.width * a.length)
-        );
-        
-        for (const binSize of sortedBinSizes) {
-          const binWidthUnits = Math.ceil(binSize.width / GRID_SIZE);
-          const binLengthUnits = Math.ceil(binSize.length / GRID_SIZE);
-          
-          // Check if bin fits within grid boundaries
-          if (gap.x + binWidthUnits > gridCols || gap.y + binLengthUnits > gridRows) {
-            continue;
-          }
-          
-          // Check if all required cells are free
-          let canPlace = true;
-          for (let x = gap.x; x < gap.x + binWidthUnits && x < 15; x++) {
-            for (let y = gap.y; y < gap.y + binLengthUnits && y < 15; y++) {
-              if (grid[x][y]) {
-                canPlace = false;
-                break;
-              }
-            }
-            if (!canPlace) break;
-          }
-          
-          if (canPlace) {
-            const newBin = {
-              id: uuidv4(),
-              x: gap.x * GRID_SIZE,
-              y: gap.y * GRID_SIZE,
-              width: binSize.width,
-              length: binSize.length,
-              height: 21,
-              shadowBoard: false,
-              name: `Auto ${++binCounter}`,
-              colorway: 'cream',
-              color: '#F5E6C8'
-            };
-            
-            // Final validation
-            if (isValidPlacement(newBin)) {
-              currentPlacedBins.push(newBin);
-              newBins.push(newBin);
-              addBin(newBin);
-              
-              // Mark all cells as occupied
-              for (let x = gap.x; x < gap.x + binWidthUnits && x < 15; x++) {
-                for (let y = gap.y; y < gap.y + binLengthUnits && y < 15; y++) {
-                  grid[x][y] = true;
-                }
-              }
-              
-              placedInThisIteration = true;
-              break; // Move to next gap
-            }
-          }
-        }
+      if (gaps.length === 0) {
+        break;
       }
-    }
-    
-    // Special case: try to fill remaining 1x1 spaces with smallest bin
-    if (newBins.length === 0) {
-      // Look for any 1x1 empty spaces
-      for (let x = 0; x < Math.min(gridCols, 15); x++) {
-        for (let y = 0; y < Math.min(gridRows, 15); y++) {
-          if (!grid[x][y]) {
-            // Try to place a 21mm x 21mm bin (1x1 unit)
-            const binSize = STANDARD_BIN_SIZES.find(s => s.width === 21 && s.length === 21);
-            if (binSize) {
+
+      for (const gap of gaps) {
+        // Ensure gap is within valid grid bounds (1-15 units)
+        if (gap.x >= 0 && gap.y >= 0 && 
+            (gap.x + gap.width) <= gridCols && 
+            (gap.y + gap.height) <= gridRows) {
+          
+          const gapWidthMM = gap.width * GRID_SIZE;
+          const gapHeightMM = gap.height * GRID_SIZE;
+
+          let binPlaced = false;
+          for (const binSize of STANDARD_BIN_SIZES) {
+            // Check if bin fits in the gap and within size limits
+            if (binSize.width <= gapWidthMM && binSize.length <= gapHeightMM) {
               const newBin = {
                 id: uuidv4(),
-                x: x * GRID_SIZE,
-                y: y * GRID_SIZE,
-                width: 21,
-                length: 21,
+                x: gap.x * GRID_SIZE,
+                y: gap.y * GRID_SIZE,
+                width: binSize.width,
+                length: binSize.length,
                 height: 21,
                 shadowBoard: false,
-                name: `Auto ${++binCounter}`,
+                name: `Auto ${binCounter + 1}`,
                 colorway: 'cream',
                 color: '#F5E6C8'
               };
-              
-              if (isValidPlacement(newBin)) {
+
+              // Validate placement within grid bounds
+              if (BinSortingService.checkValidPlacement(newBin, currentPlacedBins, gridCols, gridRows) &&
+                  newBin.x >= 0 && 
+                  newBin.y >= 0 &&
+                  (newBin.x + newBin.width) <= (gridCols * GRID_SIZE) &&
+                  (newBin.y + newBin.length) <= (gridRows * GRID_SIZE)) {
                 currentPlacedBins.push(newBin);
                 newBins.push(newBin);
                 addBin(newBin);
-                
-                // Mark cell as occupied
-                grid[x][y] = true;
+                binCounter++;
+                canPlaceMore = true;
+                binPlaced = true;
+                break;
               }
             }
+          }
+
+          if (binPlaced) {
+            break;
           }
         }
       }
     }
-    
+
     if (newBins.length > 0) {
       showCenterError(`Added ${newBins.length} auto-generated bins!`);
     } else {
       showCenterError('No suitable bin size found for available space');
     }
-  }, [pushUndoState, JSON.stringify(placedBins), gridCols, gridRows, addBin, showCenterError, isValidPlacement]);
+  }, [pushUndoState, JSON.stringify(placedBins), gridCols, gridRows, addBin, showCenterError]);
 
   const handleReset = useCallback(() => {
     pushUndoState();
