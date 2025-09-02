@@ -576,157 +576,297 @@ useEffect(() => {
     const newBins = [];
     let binCounter = placedBins.length;
     let currentPlacedBins = [...placedBins];
-    
-    // Create a 2D grid to track occupied cells (15x15 max grid)
-    const grid = Array(15).fill().map(() => Array(15).fill(false));
-    
-    // Mark occupied cells with precise boundary checking
+  
+    const maxGridCols = Math.min(20, gridCols);
+    const maxGridRows = Math.min(20, gridRows);
+  
+    // Occupancy grid in cells: grid[x][y]
+    const grid = Array.from({ length: maxGridCols }, () => Array(maxGridRows).fill(false));
+  
+    // Mark existing bins
     currentPlacedBins.forEach(bin => {
       const startX = Math.floor(bin.x / GRID_SIZE);
       const startY = Math.floor(bin.y / GRID_SIZE);
       const endX = Math.ceil((bin.x + bin.width) / GRID_SIZE);
       const endY = Math.ceil((bin.y + bin.length) / GRID_SIZE);
-      
-      for (let x = startX; x < endX && x < 15; x++) {
-        for (let y = startY; y < endY && y < 15; y++) {
-          if (x >= 0 && y >= 0) {
-            grid[x][y] = true;
-          }
+      for (let x = Math.max(0, startX); x < Math.min(maxGridCols, endX); x++) {
+        for (let y = Math.max(0, startY); y < Math.min(maxGridRows, endY); y++) {
+          grid[x][y] = true;
         }
       }
     });
-    
-    // Find all available single-cell gaps first
-    const availableCells = [];
-    for (let x = 0; x < Math.min(gridCols, 15); x++) {
-      for (let y = 0; y < Math.min(gridRows, 15); y++) {
-        if (!grid[x][y]) {
-          availableCells.push({ x, y });
-        }
-      }
-    }
-    
-    // Keep trying to place bins until no more can be placed
-    let placedInThisIteration = true;
-    while (placedInThisIteration) {
-      placedInThisIteration = false;
-      
-      // Sort available cells by position to prioritize filling gaps
-      availableCells.sort((a, b) => {
-        // Prioritize cells in the same row/column
-        if (a.x === b.x) return a.y - b.y;
-        if (a.y === b.y) return a.x - b.x;
-        return a.x - b.x;
-      });
-      
-      // Try to place bins starting from each available cell
-      for (const gap of availableCells) {
-        // Skip if this cell is already occupied
-        if (grid[gap.x][gap.y]) continue;
-        
-        // Try each standard bin size, largest first
-        const sortedBinSizes = [...STANDARD_BIN_SIZES].sort((a, b) => 
-          (b.width * b.length) - (a.width * a.length)
-        );
-        
-        for (const binSize of sortedBinSizes) {
-          const binWidthUnits = Math.ceil(binSize.width / GRID_SIZE);
-          const binLengthUnits = Math.ceil(binSize.length / GRID_SIZE);
-          
-          // Check if bin fits within grid boundaries
-          if (gap.x + binWidthUnits > gridCols || gap.y + binLengthUnits > gridRows) {
-            continue;
+  
+    const rectangles = findAllRectangles(grid, maxGridCols, gridRows);
+    rectangles.sort((a, b) => (b.width * b.height) - (a.width * a.height));
+  
+    for (const rect of rectangles) {
+      if (rect.width < 1 || rect.height < 1) continue;
+      const packed = packRectangleMaxRects(rect, STANDARD_BIN_SIZES, () => `Auto ${++binCounter}`);
+  
+      if (packed.length > 0) {
+        packed.forEach(bin => {
+          // Validate no overlap with existing (defensive)
+          if (doesIntersectAny(bin, currentPlacedBins)) {
+            // console.error('Overlap detected (should not happen):', bin);
+            return; 
           }
-          
-          // Check if all required cells are free
-          let canPlace = true;
-          for (let x = gap.x; x < gap.x + binWidthUnits && x < 15; x++) {
-            for (let y = gap.y; y < gap.y + binLengthUnits && y < 15; y++) {
-              if (grid[x][y]) {
-                canPlace = false;
-                break;
-              }
-            }
-            if (!canPlace) break;
-          }
-          
-          if (canPlace) {
-            const newBin = {
-              id: uuidv4(),
-              x: gap.x * GRID_SIZE,
-              y: gap.y * GRID_SIZE,
-              width: binSize.width,
-              length: binSize.length,
-              height: 21,
-              shadowBoard: false,
-              name: `Auto ${++binCounter}`,
-              colorway: 'cream',
-              color: '#F5E6C8'
-            };
-            
-            // Final validation
-            if (isValidPlacement(newBin)) {
-              currentPlacedBins.push(newBin);
-              newBins.push(newBin);
-              addBin(newBin);
-              
-              // Mark all cells as occupied
-              for (let x = gap.x; x < gap.x + binWidthUnits && x < 15; x++) {
-                for (let y = gap.y; y < gap.y + binLengthUnits && y < 15; y++) {
-                  grid[x][y] = true;
-                }
-              }
-              
-              placedInThisIteration = true;
-              break; // Move to next gap
+  
+          currentPlacedBins.push(bin);
+          newBins.push(bin);
+          addBin(bin);
+  
+          // Update global occupancy
+          const startX = Math.floor(bin.x / GRID_SIZE);
+          const startY = Math.floor(bin.y / GRID_SIZE);
+          const endX = Math.ceil((bin.x + bin.width) / GRID_SIZE);
+          const endY = Math.ceil((bin.y + bin.length) / GRID_SIZE);
+          for (let x = Math.max(0, startX); x < Math.min(maxGridCols, endX); x++) {
+            for (let y = Math.max(0, startY); y < Math.min(maxGridRows, endY); y++) {
+              grid[x][y] = true;
             }
           }
-        }
+        });
       }
     }
-    
-    // Special case: try to fill remaining 1x1 spaces with smallest bin
-    if (newBins.length === 0) {
-      // Look for any 1x1 empty spaces
-      for (let x = 0; x < Math.min(gridCols, 15); x++) {
-        for (let y = 0; y < Math.min(gridRows, 15); y++) {
-          if (!grid[x][y]) {
-            // Try to place a 21mm x 21mm bin (1x1 unit)
-            const binSize = STANDARD_BIN_SIZES.find(s => s.width === 21 && s.length === 21);
-            if (binSize) {
-              const newBin = {
-                id: uuidv4(),
-                x: x * GRID_SIZE,
-                y: y * GRID_SIZE,
-                width: 21,
-                length: 21,
-                height: 21,
-                shadowBoard: false,
-                name: `Auto ${++binCounter}`,
-                colorway: 'cream',
-                color: '#F5E6C8'
-              };
-              
-              if (isValidPlacement(newBin)) {
-                currentPlacedBins.push(newBin);
-                newBins.push(newBin);
-                addBin(newBin);
-                
-                // Mark cell as occupied
-                grid[x][y] = true;
-              }
-            }
-          }
-        }
-      }
+  
+    // Final assertion: ensure no overlap among all placed bins (for debugging)
+    try {
+      assertNoOverlaps(currentPlacedBins);
+    } catch (err) {
+      console.error('Overlap assertion failed:', err);
     }
-    
+  
     if (newBins.length > 0) {
       showCenterError(`Added ${newBins.length} auto-generated bins!`);
     } else {
       showCenterError('No suitable bin size found for available space');
     }
-  }, [pushUndoState, JSON.stringify(placedBins), gridCols, gridRows, addBin, showCenterError, isValidPlacement]);
+  }, [pushUndoState, placedBins, gridCols, gridRows, addBin, showCenterError, STANDARD_BIN_SIZES]); // Added missing dependencies
+  
+  // -------------------- Helper: find maximal empty rectangles --------------------
+  function findAllRectangles(grid, gridCols, gridRows) {
+    const rectangles = [];
+    const visited = Array.from({ length: grid.length }, () => Array(grid[0].length).fill(false));
+  
+    for (let x = 0; x < Math.min(grid.length, gridCols); x++) {
+      for (let y = 0; y < Math.min(grid[0].length, gridRows); y++) {
+        if (!grid[x][y] && !visited[x][y]) {
+          // maximum width on this row
+          let maxWidth = 0;
+          for (let ix = x; ix < Math.min(grid.length, gridCols) && !grid[ix][y]; ix++) maxWidth++;
+  
+          // expand height while keeping contiguous width
+          let currWidth = maxWidth;
+          let maxHeight = 0;
+          for (let iy = y; iy < Math.min(grid[0].length, gridRows); iy++) {
+            let rowWidth = 0;
+            for (let ix = x; ix < Math.min(grid.length, gridCols) && !grid[ix][iy]; ix++) rowWidth++;
+            if (rowWidth === 0) break;
+            currWidth = Math.min(currWidth, rowWidth);
+            maxHeight++;
+          }
+  
+          // mark visited cells
+          for (let vx = x; vx < x + currWidth; vx++) {
+            for (let vy = y; vy < y + maxHeight; vy++) {
+              if (vx < grid.length && vy < grid[0].length) visited[vx][vy] = true;
+            }
+          }
+  
+          rectangles.push({
+            x: x * GRID_SIZE,
+            y: y * GRID_SIZE,
+            width: currWidth,
+            height: maxHeight
+          });
+        }
+      }
+    }
+    return rectangles;
+  }
+  
+  // -------------------- MaxRects packer (robust splitting) --------------------
+  function packRectangleMaxRects(rect, binSizes, nameGenerator) {
+    // convert to cell sizes (ceil to ensure fit), compute area
+    const binsCell = binSizes.map(b => ({
+      ...b,
+      cellW: Math.max(1, Math.ceil(b.width / GRID_SIZE)),
+      cellH: Math.max(1, Math.ceil(b.length / GRID_SIZE)),
+      area: Math.max(1, Math.ceil(b.width / GRID_SIZE)) * Math.max(1, Math.ceil(b.length / GRID_SIZE))
+    }));
+    // try large first
+    binsCell.sort((a, b) => b.area - a.area);
+  
+    // free rects in local cell coords (origin at 0..rect.width-1, 0..rect.height-1)
+    let freeRects = [{ x: 0, y: 0, w: rect.width, h: rect.height }];
+    const usedRects = [];
+    const placedBins = [];
+  
+    function rectsIntersect(a, b) {
+      return !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y);
+    }
+  
+    function splitFreeRectByPlaced(fr, placed) {
+      const newRects = [];
+      const ix = Math.max(fr.x, placed.x);
+      const iy = Math.max(fr.y, placed.y);
+      const ix2 = Math.min(fr.x + fr.w, placed.x + placed.w);
+      const iy2 = Math.min(fr.y + fr.h, placed.y + placed.h);
+  
+      // no intersection => keep original
+      if (ix >= ix2 || iy >= iy2) {
+        newRects.push(fr);
+        return newRects;
+      }
+  
+      // left strip
+      if (fr.x < ix) newRects.push({ x: fr.x, y: fr.y, w: ix - fr.x, h: fr.h });
+      // right strip
+      if (fr.x + fr.w > ix2) newRects.push({ x: ix2, y: fr.y, w: (fr.x + fr.w) - ix2, h: fr.h });
+      // top strip
+      if (fr.y < iy) newRects.push({ x: fr.x, y: fr.y, w: fr.w, h: iy - fr.y });
+      // bottom strip
+      if (fr.y + fr.h > iy2) newRects.push({ x: fr.x, y: iy2, w: fr.w, h: (fr.y + fr.h) - iy2 });
+  
+      return newRects.filter(r => r.w > 0 && r.h > 0);
+    }
+  
+    function pruneFreeList() {
+      for (let i = 0; i < freeRects.length; i++) {
+        for (let j = i + 1; j < freeRects.length; j++) {
+          const a = freeRects[i], b = freeRects[j];
+          if (a.w <= 0 || a.h <= 0 || b.w <= 0 || b.h <= 0) continue;
+          if (a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h) {
+            // a inside b -> remove a
+            freeRects.splice(i, 1);
+            i--;
+            break;
+          }
+          if (b.x >= a.x && b.y >= a.y && b.x + b.w <= a.x + a.w && b.y + b.h <= a.y + a.h) {
+            // b inside a -> remove b
+            freeRects.splice(j, 1);
+            j--;
+          }
+        }
+      }
+      // remove zero sized
+      for (let k = freeRects.length - 1; k >= 0; k--) {
+        if (freeRects[k].w <= 0 || freeRects[k].h <= 0) freeRects.splice(k, 1);
+      }
+    }
+  
+    function insertOne(w, h, allowRotate = true) {
+      let bestScore = Infinity;
+      let bestNode = null;
+  
+      for (let i = 0; i < freeRects.length; i++) {
+        const fr = freeRects[i];
+  
+        // without rotation
+        if (w <= fr.w && h <= fr.h) {
+          const leftoverHoriz = fr.w - w;
+          const leftoverVert = fr.h - h;
+          const shortSide = Math.min(leftoverHoriz, leftoverVert);
+          const longSide = Math.max(leftoverHoriz, leftoverVert);
+          const score = shortSide * 1000 + longSide;
+          if (score < bestScore) {
+            bestScore = score;
+            bestNode = { x: fr.x, y: fr.y, w, h, freeIndex: i };
+          }
+        }
+  
+        // with rotation
+        if (allowRotate && h <= fr.w && w <= fr.h) {
+          const leftoverHoriz = fr.w - h;
+          const leftoverVert = fr.h - w;
+          const shortSide = Math.min(leftoverHoriz, leftoverVert);
+          const longSide = Math.max(leftoverHoriz, leftoverVert);
+          const score = shortSide * 1000 + longSide;
+          if (score < bestScore) {
+            bestScore = score;
+            bestNode = { x: fr.x, y: fr.y, w: h, h: w, freeIndex: i };
+          }
+        }
+      }
+  
+      if (!bestNode) return null;
+  
+      const placed = { x: bestNode.x, y: bestNode.y, w: bestNode.w, h: bestNode.h };
+      usedRects.push(placed);
+  
+      // split ALL free rects that intersect placed
+      const newFree = [];
+      for (let i = 0; i < freeRects.length; i++) {
+        const fr = freeRects[i];
+        if (!rectsIntersect(fr, placed)) {
+          newFree.push(fr);
+        } else {
+          const pieces = splitFreeRectByPlaced(fr, placed);
+          pieces.forEach(p => newFree.push(p));
+        }
+      }
+      freeRects = newFree;
+      pruneFreeList();
+      return { placed };
+    }
+  
+    // greedy loop: try largest-first repeatedly
+    let progress = true;
+    while (progress) {
+      progress = false;
+      for (const bs of binsCell) {
+        let placedThisSize = true;
+        while (placedThisSize) {
+          const res = insertOne(bs.cellW, bs.cellH, true);
+          if (!res) {
+            placedThisSize = false;
+          } else {
+            const { placed } = res;
+            // convert to mm absolute coords using rect.x rect.y
+            const newBin = {
+              id: uuidv4(),
+              x: rect.x + placed.x * GRID_SIZE,
+              y: rect.y + placed.y * GRID_SIZE,
+              width: placed.w * GRID_SIZE,
+              length: placed.h * GRID_SIZE,
+              height: bs.height ?? 21,
+              shadowBoard: bs.shadowBoard ?? false,
+              name: nameGenerator(),
+              colorway: bs.colorway ?? 'cream',
+              color: bs.color ?? '#F5E6C8'
+            };
+            placedBins.push(newBin);
+            progress = true;
+          }
+        }
+      }
+    }
+  
+    return placedBins;
+  }
+  
+  // -------------------- Utility: overlap checks --------------------
+  function rectIntersectMm(a, b) {
+    // treat rectangles as [x, x+width) half-open to avoid accidental edge-touching overlap
+    return !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.length <= b.y || b.y + b.length <= a.y);
+  }
+  
+  function doesIntersectAny(bin, list) {
+    for (const other of list) {
+      if (rectIntersectMm(bin, other)) return true;
+    }
+    return false;
+  }
+  
+  function assertNoOverlaps(list) {
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        if (rectIntersectMm(list[i], list[j])) {
+          throw new Error(`Overlap between index ${i} and ${j}`);
+        }
+      }
+    }
+  }
 
   const handleReset = useCallback(() => {
     pushUndoState();
