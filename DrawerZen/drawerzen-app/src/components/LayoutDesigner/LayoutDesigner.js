@@ -641,7 +641,7 @@ useEffect(() => {
     } else {
       showCenterError('No suitable bin size found for available space');
     }
-  }, [pushUndoState, placedBins, gridCols, gridRows, addBin, showCenterError, STANDARD_BIN_SIZES]); // Added missing dependencies
+  }, [pushUndoState, placedBins, gridCols, gridRows, addBin, showCenterError, STANDARD_BIN_SIZES]); 
   
   // -------------------- Helper: find maximal empty rectangles --------------------
   function findAllRectangles(grid, gridCols, gridRows) {
@@ -685,7 +685,7 @@ useEffect(() => {
     return rectangles;
   }
   
-  // -------------------- MaxRects packer (robust splitting) --------------------
+  // -------------------- MaxRects packer --------------------
   function packRectangleMaxRects(rect, binSizes, nameGenerator) {
     // convert to cell sizes (ceil to ensure fit), compute area
     const binsCell = binSizes.map(b => ({
