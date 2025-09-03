@@ -196,7 +196,7 @@ const Login = () => {
           />
         </FormGroup>
 
-        {!isSignUp && (
+        
           <FormGroup>
             <Input
               type="password"
@@ -206,7 +206,7 @@ const Login = () => {
               required={!isSignUp}
             />
           </FormGroup>
-        )}
+        
 
         {!isSignUp && (
           <ForgotPasswordLink 
