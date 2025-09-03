@@ -199,7 +199,12 @@ const SubmitButton = styled.button`
     transform: translateY(-1px);
     box-shadow: 0 3px 8px rgba(79, 70, 229, 0.3);
   }
-  
+   &.loading { 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px; 
+  }
   &:active {
     transform: translateY(0);
   }
@@ -229,19 +234,19 @@ const Spinner = styled.div`
 const UploadLabel = styled.label`
   display: inline-block;
   padding: 0.75rem 1.5rem;
-  background: #4f46e5;
-  color: white;
+  background: ${props => props.disabled ? '#d1d5db' : '#4f46e5'}; /* Grayed out when disabled */
+  color: ${props => props.disabled ? '#9ca3af' : 'white'};
   border-radius: 6px;
-  cursor: pointer;
+  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
   font-weight: 600;
   font-size: 0.9rem;
   transition: all 0.2s;
   margin: 0.5rem 0;
   
   &:hover {
-    background: #4338ca;
-    transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(79, 70, 229, 0.3);
+    background: ${props => props.disabled ? '#d1d5db' : '#4338ca'};
+    transform: ${props => props.disabled ? 'none' : 'translateY(-1px)'};
+    box-shadow: ${props => props.disabled ? 'none' : '0 3px 8px rgba(79, 70, 229, 0.3)'};
   }
   
   ${media.mobile} {
@@ -440,6 +445,43 @@ const ResponsiveRow = styled.div`
     gap: 0.5rem;
   }
 `;
+const RemoveImageButton = styled.button`
+  display: inline-block;
+  padding: 0.75rem 1.5rem; 
+  background: #ef4444; /* Red background */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500; 
+  font-size: 0.9rem; 
+  transition: all 0.2s;
+  margin: 0.5rem 0 0 0.5rem; 
+  width: auto;
+
+  &:hover {
+    background: #dc2626; 
+    /* Optional subtle transform, or omit for a simpler hover */
+     transform: translateY(-1px); 
+   box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3); 
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    background: #d1d5db;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  ${media.mobile} {
+    padding: 0.45rem 0.9rem;
+    font-size: 0.8rem;
+  }
+`;
 
 const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
   const [submitting, setSubmitting] = useState(false);
@@ -499,7 +541,9 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
     baseDimensionsMM.width && baseDimensionsMM.length && baseDimensionsMM.height && image,
     [baseDimensionsMM, image]
   );
-
+  const canUploadImage = useMemo(() => {
+    return baseDimensionsMM.width && baseDimensionsMM.length;
+  }, [baseDimensionsMM]);
   // Format display values based on unit
   const formatDisplayVal = useCallback((mmVal) => {
     if (mmVal === '' || mmVal == null || isNaN(parseFloat(mmVal))) return '';
@@ -890,6 +934,30 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
     
     return { device, os, browser };
   }, []);
+  const handleRemoveImage = useCallback(() => {
+    // Reset all image-related state
+    setImage(null);
+    setOriginalFile(null);
+    setCroppedImage(null);
+    setUnderlayImage(null);
+    setRotatedImage(null);
+    setTransform(null);
+    setCornerDeltas(null);
+    setRectifiedDrawerMM(null); 
+  
+    // Clear image data from dataManager if it exists
+    if (dataManager) {
+      dataManager.updateUploadedImage(null); 
+      // Optionally clear drawer dimensions if they were tied to the image
+       dataManager.updateDrawerDimensions(null); 
+    }
+  
+    // Reset the file input element (optional but good practice)
+    const fileInput = document.querySelector('input[type="file"][accept="image/*"]');
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }, [dataManager]);
 
   // Effects
   useEffect(() => {
@@ -983,7 +1051,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
         </UnitToggle>
 
         <div>
-          <UploadLabel>
+          <UploadLabel disabled={!canUploadImage}>
             {uploading ? 'Uploading...' : 'Upload Image'}
             <HiddenFileInput
               type="file"
@@ -992,6 +1060,11 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
               disabled={uploading}
             />
           </UploadLabel>
+          {image && (
+            <RemoveImageButton onClick={handleRemoveImage} disabled={uploading || submitting}>
+              Remove Image
+            </RemoveImageButton>
+          )}
         </div>
 
         {image && (
@@ -1057,6 +1130,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
           $expanded={isExpanded}
           onClick={handleSubmit}
           disabled={!isValid || uploading || submitting}
+          className={submitting ? 'loading' : ''}
         >
           {submitting ? (
             <>
