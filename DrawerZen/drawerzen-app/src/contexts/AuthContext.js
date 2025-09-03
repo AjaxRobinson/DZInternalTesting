@@ -91,7 +91,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
   const resetPassword = async (email) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://ajaxrobinson.github.io/DZInternalTesting/reset-password' // Adjust URL as needed
+      redirectTo: 'https://ajaxrobinson.github.io/DZInternalTesting/' 
     });
     return { error };
   };
