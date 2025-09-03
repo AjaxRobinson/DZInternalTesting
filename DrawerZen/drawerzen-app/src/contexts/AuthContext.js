@@ -103,6 +103,7 @@ export const AuthProvider = ({ children }) => {
     signIn,
     signUp,
     signOut,
+    resetPassword,
   };
 
   return (
