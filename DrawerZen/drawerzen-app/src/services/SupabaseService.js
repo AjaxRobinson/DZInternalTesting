@@ -322,7 +322,15 @@ class SupabaseService {
   
       // Get current user ID
       const userId = await this.getCurrentUserId();
-  
+      // --- NEW CHECK FOR GUEST USER ---
+     if (!userId) {
+      console.warn('Guest user detected. Bins will not be saved to database for project:', projectId);
+       localStorage.setItem(`guest_project_${projectId}_bins`, JSON.stringify(bins));
+      return { success: true, message: 'Bins not saved (guest mode)', guest: true }; // Indicate success locally
+    }
+    // --- END NEW CHECK ---
+
+
       // Prepare bins data for insertion - generate NEW unique IDs for all bins
       const binsData = bins.map(bin => {
         const binData = {
@@ -520,8 +528,27 @@ class SupabaseService {
     }
 
     try {
-      const userId = await this.getCurrentUserId();
-      
+      const userId = await this.getCurrentUserId(); 
+        // --- NEW CHECK FOR GUEST USER ---
+    if (!userId) {
+      console.warn('Guest user detected. Project will not be saved to database.');
+      // Option 1a: Return a simulated success without DB interaction
+      // You might want to structure this data similarly to a real DB record
+      const simulatedProjectData = {
+        id: projectId,
+        sample_id: projectData.sample_id || `sample_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        drawer_width_mm: projectData.drawer_width_mm || 320,
+        drawer_length_mm: projectData.drawer_length_mm || 320,
+        drawer_height_mm: projectData.drawer_height_mm || 21,
+        status: projectData.status || 'draft',
+        unit: projectData.unit || 'mm',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      // Return success but indicate it's not persisted
+      return { success: true, data: simulatedProjectData, guest: true }; 
+    }
+    
       // Check if project already exists
       let projectQuery = this.client
         .from(this.projectsTable)
