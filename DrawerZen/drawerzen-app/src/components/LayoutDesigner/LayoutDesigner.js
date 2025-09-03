@@ -577,8 +577,8 @@ useEffect(() => {
     let binCounter = placedBins.length;
     let currentPlacedBins = [...placedBins];
   
-    const maxGridCols = Math.min(20, gridCols);
-    const maxGridRows = Math.min(20, gridRows);
+    const maxGridCols = Math.min(50, gridCols);
+    const maxGridRows = Math.min(50, gridRows);
   
     // Occupancy grid in cells: grid[x][y]
     const grid = Array.from({ length: maxGridCols }, () => Array(maxGridRows).fill(false));
