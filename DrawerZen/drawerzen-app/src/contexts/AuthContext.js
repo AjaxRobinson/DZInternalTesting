@@ -61,11 +61,16 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const signUp = useCallback(async (email, password) => {
+  const signUp = useCallback(async (email, password,displayName) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            display_name: displayName,
+          },
+        }
       });
       
       if (error) throw error;
@@ -84,6 +89,12 @@ export const AuthProvider = ({ children }) => {
       console.error('Sign out error:', error);
     }
   }, []);
+  const resetPassword = async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://ajaxrobinson.github.io/DZInternalTesting/reset-password' // Adjust URL as needed
+    });
+    return { error };
+  };
 
   const value = {
     user,

@@ -58,6 +58,12 @@ const ErrorMessage = styled.div`
   text-align: center;
 `;
 
+const SuccessMessage = styled.div`
+  color: green;
+  margin-bottom: 1rem;
+  text-align: center;
+`;
+
 const ToggleButton = styled.button`
   background: none;
   color: #007bff;
@@ -66,28 +72,49 @@ const ToggleButton = styled.button`
   cursor: pointer;
   margin-top: 1rem;
   width: 100%;
+  text-align: center;
+`;
+
+const ForgotPasswordLink = styled.button`
+  background: none;
+  color: #007bff;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  width: 100%;
+  text-align: center;
+  font-size: 0.9rem;
 `;
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
 
     try {
-      if (isSignUp) {
-        const { error } = await signUp(email, password);
+      if (isForgotPassword) {
+        const { error } = await resetPassword(email);
         if (error) throw error;
-        alert('Check your email for confirmation!');
+        setSuccess('Password reset email sent! Check your inbox.');
+      } else if (isSignUp) {
+        const { error } = await signUp(email, password, displayName);
+        if (error) throw error;
+        setSuccess('Check your email for confirmation!');
         setIsSignUp(false);
       } else {
         const { error } = await signIn(email, password);
@@ -101,13 +128,64 @@ const Login = () => {
     }
   };
 
+  const handleBackToLogin = () => {
+    setIsForgotPassword(false);
+    setIsSignUp(false);
+    setError('');
+    setSuccess('');
+  };
+
+  if (isForgotPassword) {
+    return (
+      <LoginContainer>
+        <LoginForm onSubmit={handleSubmit}>
+          <h2>Reset Password</h2>
+          
+          {error && <ErrorMessage>{error}</ErrorMessage>}
+          {success && <SuccessMessage>{success}</SuccessMessage>}
+          
+          <FormGroup>
+            <Input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </FormGroup>
+          
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Sending...' : 'Send Reset Link'}
+          </Button>
+          
+          <ToggleButton type="button" onClick={handleBackToLogin}>
+            Back to Sign In
+          </ToggleButton>
+        </LoginForm>
+      </LoginContainer>
+    );
+  }
+
   return (
     <LoginContainer>
       <LoginForm onSubmit={handleSubmit}>
         <h2>{isSignUp ? 'Sign Up' : 'Sign In'}</h2>
-        
+
         {error && <ErrorMessage>{error}</ErrorMessage>}
-        
+        {success && <SuccessMessage>{success}</SuccessMessage>}
+
+        {isSignUp && (
+          <FormGroup>
+            <Input
+              type="text"
+              placeholder="Full Name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              required={isSignUp}
+            />
+          </FormGroup>
+        )}
+
         <FormGroup>
           <Input
             type="email"
@@ -117,26 +195,36 @@ const Login = () => {
             required
           />
         </FormGroup>
-        
-        <FormGroup>
-          <Input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </FormGroup>
-        
+
+        {!isSignUp && (
+          <FormGroup>
+            <Input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required={!isSignUp}
+            />
+          </FormGroup>
+        )}
+
+        {!isSignUp && (
+          <ForgotPasswordLink 
+            type="button" 
+            onClick={() => setIsForgotPassword(true)}
+          >
+            Forgot Password?
+          </ForgotPasswordLink>
+        )}
+
         <Button type="submit" disabled={loading}>
           {loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
         </Button>
-        
-        <ToggleButton
-          type="button"
-          onClick={() => setIsSignUp(!isSignUp)}
-        >
-          {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+
+        <ToggleButton type="button" onClick={() => setIsSignUp(!isSignUp)}>
+          {isSignUp
+            ? 'Already have an account? Sign In'
+            : "Don't have an account? Sign Up"}
         </ToggleButton>
       </LoginForm>
     </LoginContainer>
