@@ -448,7 +448,7 @@ const ResponsiveRow = styled.div`
 const RemoveImageButton = styled.button`
   display: inline-block;
   padding: 0.75rem 1.5rem; 
-  background: #ef4444; /* Red background */
+  background: #4f46e5;
   color: white;
   border: none;
   border-radius: 6px;
@@ -460,10 +460,10 @@ const RemoveImageButton = styled.button`
   width: auto;
 
   &:hover {
-    background: #dc2626; 
+    background: #4338ca; 
     /* Optional subtle transform, or omit for a simpler hover */
      transform: translateY(-1px); 
-   box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3); 
+   box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3); 
   }
 
   &:active {
@@ -1091,7 +1091,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
               onComplete={handleRectifierComplete}
             />
             
-            <DebugPanel>
+            {/* <DebugPanel>
               <DebugHeader>
                 <strong>Rectification Preview</strong>
                 <div>
@@ -1122,7 +1122,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
                   </div>
                 </>
               )}
-            </DebugPanel>
+            </DebugPanel> */}
           </PreviewSection>
         )}
 
