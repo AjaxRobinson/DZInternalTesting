@@ -51,10 +51,10 @@ const DraggablePlacedBin = ({
 
   const bedStyle = useMemo(() => ({
     position: 'absolute',
-    top: '2mm',
-    left: '2mm',
-    right: '2mm',
-    bottom: '2mm',
+    top: '1mm',
+    left: '1mm',
+    right: '1mm',
+    bottom: '1mm',
     background: bedColorMap[bin.colorway] || '#4A4A58',
     borderRadius: '3px',
     boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)',

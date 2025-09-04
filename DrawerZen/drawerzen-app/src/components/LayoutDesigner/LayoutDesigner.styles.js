@@ -299,11 +299,11 @@ export const GridWrapper = styled.div`
 export const GridBoundingBox = styled.div`
 width: ${props => props.width ? `${props.width}px` : '100%'};
   height: ${props => props.height ? `${props.height}px` : '100%'};
-  position: relative;
+  // position: relative;
   border: 2px solid #e2e8f0;
   border-radius: 4px;
   background: #ffffff;
-  overflow: hidden;
+  overflow: auto;
   box-sizing: border-box;
   /* Ensure it can shrink if needed on small screens */
   max-width: 100%;
