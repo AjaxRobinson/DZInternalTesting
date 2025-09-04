@@ -691,10 +691,10 @@ export const CenterColumn = styled.div`
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
-  height: 100%;
+  height: 75dvh;
 
   ${media.small} {
-    order: 1; /* Grid comes first on mobile */
+    order: 1; 
     gap: 0.5rem;
   }
 `;

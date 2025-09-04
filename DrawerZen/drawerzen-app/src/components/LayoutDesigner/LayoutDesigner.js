@@ -342,43 +342,43 @@ useEffect(() => {
           const gridY = Math.floor(y / cellPixelSize);
           
           // Convert to millimeter coordinates
-          const mmX = Math.max(0, gridX * GRID_SIZE);
-          const mmY = Math.max(0, gridY * GRID_SIZE);
+          const mmX = gridX * GRID_SIZE;
+          const mmY = gridY * GRID_SIZE;
           
-          // Get the bin dimensions for shadow
-          let binWidth, binLength;
-          if (item.bin) {
-            // New bin from carousel
-            binWidth = item.bin.width;
-            binLength = item.bin.length;
-          } else if (item.placedBinId) {
-            // Existing bin being moved
-            const existingBin = placedBins.find(bin => bin.id === item.placedBinId);
-            if (existingBin) {
-              binWidth = existingBin.width;
-              binLength = existingBin.length;
-            }
+          // Create virtual dragged bin for carousel items
+          let currentDraggedBin = draggedBin;
+          
+          if (item.bin && !currentDraggedBin) {
+            // Bin from carousel - create temporary dragged bin
+            currentDraggedBin = {
+              id: item.bin.id,
+              width: item.bin.width,
+              length: item.bin.length,
+              x: mmX,
+              y: mmY
+            };
           }
           
-          if (binWidth && binLength) {
-            // Check if placement is valid
-            const isValid = mmX >= 0 && 
-                           mmY >= 0 &&
-                           (mmX + binWidth) <= (gridCols * GRID_SIZE) &&
-                           (mmY + binLength) <= (gridRows * GRID_SIZE) &&
-                           !checkCollision({ 
-                             x: mmX, 
-                             y: mmY, 
-                             width: binWidth, 
-                             length: binLength,
-                             id: item.placedBinId 
-                           }, item.placedBinId);
+          if (currentDraggedBin) {
+            const newBin = { 
+              ...currentDraggedBin, 
+              x: mmX, 
+              y: mmY 
+            };
+            
+            // Check if placement is valid (within 1-15 grid limits)
+            const isValid = checkBounds(newBin) && 
+                           !checkCollision(newBin, currentDraggedBin.id) &&
+                           newBin.x >= 0 && 
+                           newBin.y >= 0 &&
+                           (newBin.x + newBin.width) <= (gridCols * GRID_SIZE) &&
+                           (newBin.y + newBin.length) <= (gridRows * GRID_SIZE);
 
             // Convert to pixel positions for visual feedback
             const pixelX = (mmX / GRID_SIZE) * cellPixelSize;
             const pixelY = (mmY / GRID_SIZE) * cellPixelSize;
-            const pixelWidth = (binWidth / GRID_SIZE) * cellPixelSize;
-            const pixelHeight = (binLength / GRID_SIZE) * cellPixelSize;
+            const pixelWidth = (currentDraggedBin.width / GRID_SIZE) * cellPixelSize;
+            const pixelHeight = (currentDraggedBin.length / GRID_SIZE) * cellPixelSize;
 
             // Update drop shadow for visual feedback
             setDropShadow({
@@ -446,8 +446,8 @@ useEffect(() => {
           if (isValidPlacement(newBin) &&
               newBin.x >= 0 && 
               newBin.y >= 0 &&
-              (newX + newBin.width) <= (gridCols * GRID_SIZE) &&
-              (newY + newBin.length) <= (gridRows * GRID_SIZE)) {
+              (newBin.x + newBin.width) <= (gridCols * GRID_SIZE) &&
+              (newBin.y + newBin.length) <= (gridRows * GRID_SIZE)) {
             pushUndoState();
             addBin(newBin);
             setRemainingBins(prev => prev.filter(bin => bin.id !== item.bin.id));
@@ -465,6 +465,7 @@ useEffect(() => {
     }),
   }), [
     cellPixelSize,
+    draggedBin,
     isValidPlacement,
     pushUndoState,
     moveBin,
@@ -472,23 +473,12 @@ useEffect(() => {
     addBin,
     setRemainingBins,
     JSON.stringify(placedBins),
+    checkBounds,
     checkCollision,
     setDropShadow,
     gridCols,
     gridRows
   ]);
-
-  // Clear drop shadow when not hovering over grid or when dragging ends
-  useEffect(() => {
-    if (!isOver || !draggedBin) {
-      const timer = setTimeout(() => {
-        if (!isOver) {
-          setDropShadow(null);
-        }
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isOver, draggedBin, setDropShadow]);
 
   // Clear drop shadow when not hovering over grid
   useEffect(() => {
@@ -496,6 +486,7 @@ useEffect(() => {
       setDropShadow(null);
     }
   }, [isOver, setDropShadow]);
+ 
 
   // Bin event handlers
   const handleBinClick = useCallback((bin) => {
@@ -1014,7 +1005,7 @@ useEffect(() => {
                     <GridBoundingBox 
                       width={Math.round(gridBounds?.width) || 0}
                       height={Math.round(gridBounds?.height) || 0}
-                      style={backgroundImageStyle}
+                      // style={backgroundImageStyle}
                     >
                       {/* <div style={{
                         position: 'absolute',
@@ -1051,6 +1042,7 @@ useEffect(() => {
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
                         underlayImage={underlayImage}
+                        backgroundImageStyle={backgroundImageStyle}
                       />
                     </GridBoundingBox>
                   </GridWrapper>

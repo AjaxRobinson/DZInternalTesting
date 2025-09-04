@@ -28,9 +28,7 @@ const BinGrid = forwardRef(({
   onMouseDown,
   onMouseMove,
   onMouseUp,
-  underlayImage,
-  onFocusBin,
-  onBlurBin
+  underlayImage
 }, ref) => {
   const safeGridCols = Math.max(1, gridCols || 1);
   const safeGridRows = Math.max(1, gridRows || 1);
@@ -62,10 +60,8 @@ const BinGrid = forwardRef(({
       onDoubleClick={() => onBinDoubleClick(bin)}
       onDragStart={() => onDragStart(bin)}
       onDragEnd={onDragEnd}
-      onFocusBin={onFocusBin}
-      onBlurBin={onBlurBin}
     />
-  )), [placedBins, cellSize, selectedBin?.id, draggedBin?.id, onBinClick, onBinDoubleClick, onDragStart, onDragEnd, onFocusBin, onBlurBin]);
+  )), [placedBins, cellSize, selectedBin?.id, draggedBin?.id, onBinClick, onBinDoubleClick, onDragStart, onDragEnd]);
 
   // Debug: watch underlay changes
   useEffect(() => {
@@ -86,6 +82,12 @@ const BinGrid = forwardRef(({
         if (ref) ref(el);
       }}
       data-grid="true"
+      style={{
+        backgroundImage: underlayImage ? `url(${underlayImage})` : 'none',
+        backgroundSize: 'cover',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
+      }}
     >
       {gridCells}
       {/* Drawing overlay */}
