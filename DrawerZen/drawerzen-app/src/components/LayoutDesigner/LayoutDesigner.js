@@ -283,7 +283,7 @@ useEffect(() => {
     handleMouseMove,
     handleMouseUp,
     setErrorMessage
-  } = useBinDrawing(gridCols, gridRows, placedBins, setPlacedBins, GRID_SIZE, pushUndoState);
+  } = useBinDrawing(gridCols, gridRows, placedBins, setPlacedBins, GRID_SIZE, pushUndoState, cellPixelSize);
 
   // Drag and drop hook with proper hover handling
   const {

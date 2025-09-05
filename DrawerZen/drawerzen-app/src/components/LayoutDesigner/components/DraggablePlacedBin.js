@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useDrag } from 'react-dnd';
 import { PlacedBin } from '../LayoutDesigner.styles';
+import { GRID_SIZE } from '../LayoutDesigner.constants';
 
 const colorwayMap = {
   cream: '#F5E6C8',
@@ -43,10 +44,10 @@ const DraggablePlacedBin = ({
   });
 
   const style = useMemo(() => ({
-    left: (bin.x / 21) * cellSize,
-    top: (bin.y / 21) * cellSize,
-    width: (bin.width / 21) * cellSize,
-    height: ((bin.length || bin.height) / 21) * cellSize
+    left: (bin.x / GRID_SIZE) * cellSize,
+    top: (bin.y / GRID_SIZE) * cellSize,
+    width: (bin.width / GRID_SIZE) * cellSize,
+    height: ((bin.length || bin.height) / GRID_SIZE) * cellSize
   }), [bin.x, bin.y, bin.width, bin.length, bin.height, cellSize]);
 
   const bedStyle = useMemo(() => ({
@@ -74,7 +75,7 @@ const DraggablePlacedBin = ({
       onFocus={() => onFocusBin && onFocusBin(bin)}
       onBlur={() => onBlurBin && onBlurBin(bin)}
     >
-      {/* Internal bed with 2mm wall gap */}
+      {/* Internal bed with 1mm wall gap */}
       <div style={bedStyle} />
       {bin.label}
     </PlacedBin>

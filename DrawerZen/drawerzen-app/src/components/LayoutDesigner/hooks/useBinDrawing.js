@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { GRID_SIZE, BIN_CONSTRAINTS } from '../LayoutDesigner.constants';
 
-export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gridSize, pushUndoState) => {
+export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gridSize, pushUndoState, cellPixelSize) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState(null);
   const [drawEnd, setDrawEnd] = useState(null);
@@ -31,7 +31,7 @@ export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gri
     const actualLength = length * GRID_SIZE;
     const area = actualWidth * actualLength;
     // Area-based minimum bin validation
-    if (area <= 441) { // 21mm x 21mm = 441 square mm (1 cell)
+    if (area <= 441) { 
       return false;
     }
     // Otherwise, check all constraints
@@ -42,6 +42,7 @@ export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gri
            area >= BIN_CONSTRAINTS.MIN_AREA_REQUIREMENT;
   }, []);
 
+ 
   const getGridPosition = useCallback((clientX, clientY) => {
     if (!drawingContainerRef.current) return null;
     
@@ -49,14 +50,17 @@ export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gri
     const x = clientX - rect.left;
     const y = clientY - rect.top;
     
-    // Get cell pixel size from the grid
-    const cellPixelSize = rect.width / gridCols;
-    
+    // Ensure cellPixelSize is valid before using it
+    if (cellPixelSize <= 0) {
+        console.warn("Invalid cellPixelSize in useBinDrawing:", cellPixelSize);
+        return null; 
+    }
+
     const gridX = Math.floor(x / cellPixelSize);
     const gridY = Math.floor(y / cellPixelSize);
     
     return { gridX, gridY };
-  }, [gridCols]);
+  }, [cellPixelSize]); 
 
   const handleMouseDown = useCallback((e) => {
     e.preventDefault();
@@ -74,11 +78,12 @@ export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gri
   }, [getGridPosition, gridCols, gridRows]);
 
   const handleMouseMove = useCallback((e) => {
-    if (!isDrawing) return;
+    if (!isDrawing || !drawStart) return; 
     
     const pos = getGridPosition(e.clientX, e.clientY);
     if (!pos) return;
     
+  
     const endX = Math.max(0, Math.min(pos.gridX, gridCols - 1));
     const endY = Math.max(0, Math.min(pos.gridY, gridRows - 1));
     
@@ -101,45 +106,54 @@ export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gri
     const hasCollision = checkCollision(binInMm);
     const isValidSize = validateBinSize(width, length);
     
+    let currentErrorType = null;
+    let currentErrorMessage = '';
     if (!isValidSize) {
-      const minCells = Math.round(BIN_CONSTRAINTS.minWidth / GRID_SIZE);
-      const maxCells = Math.round(BIN_CONSTRAINTS.maxWidth / GRID_SIZE);
-      // Show error if either dimension is below min or above max
-      if (width <= 1 && length <= 1) {
-        setDrawingError('size');
-        setErrorMessage(`Bin size must be between ${minCells} and ${maxCells} cells`);
+      const minCells = Math.ceil(BIN_CONSTRAINTS.minWidth / GRID_SIZE);
+      const maxCells = Math.floor(BIN_CONSTRAINTS.maxWidth / GRID_SIZE);
+      // More specific error based on size
+      if (width < minCells || length < minCells) {
+        currentErrorType = 'size';
+        currentErrorMessage = `Bin size must be at least ${minCells} cells`;
       } else if (width > maxCells || length > maxCells) {
-        setDrawingError('size');
-        setErrorMessage(`Bin size cannot exceed ${maxCells} cells`);
+        currentErrorType = 'size';
+        currentErrorMessage = `Bin size cannot exceed ${maxCells} cells`;
       } else {
-        setDrawingError(null);
-        setErrorMessage('');
+         // Fallback if it's area related
+         currentErrorType = 'size';
+         currentErrorMessage = 'Bin size is invalid';
       }
     } else if (hasCollision) {
-      setDrawingError('collision');
-      setErrorMessage('Cannot place bin here - overlaps with existing bin');
-    } else {
-      setDrawingError(null);
-      setErrorMessage('');
+      currentErrorType = 'collision';
+      currentErrorMessage = 'Cannot place bin here - overlaps with existing bin';
     }
     
-    // Set preview using pixel coordinates for rendering
-    const cellPixelSize = drawingContainerRef.current ? 
-      drawingContainerRef.current.getBoundingClientRect().width / gridCols : 0;
+    setDrawingError(currentErrorType);
+    setErrorMessage(currentErrorMessage);
+
     
-    setDrawingPreview({
-      left: x * cellPixelSize,
-      top: y * cellPixelSize,
-      width: width * cellPixelSize,
-      height: length * cellPixelSize,
-      hasError: !isValidSize || hasCollision
-    });
-  }, [isDrawing, getGridPosition, drawStart, gridCols, gridRows, checkCollision, validateBinSize]);
+    // Ensure cellPixelSize is valid
+    if (cellPixelSize > 0) {
+        setDrawingPreview({
+          left: x * cellPixelSize,      
+          top: y * cellPixelSize,       
+          width: width * cellPixelSize, 
+          height: length * cellPixelSize, 
+          hasError: !isValidSize || hasCollision
+        });
+    } else {
+        setDrawingPreview(null); 
+        console.warn("Cannot set drawing preview: invalid cellPixelSize", cellPixelSize);
+    }
+  }, [isDrawing, drawStart, getGridPosition, gridCols, gridRows, checkCollision, validateBinSize, cellPixelSize]); // Add cellPixelSize
 
   const handleMouseUp = useCallback(() => {
+   
     if (!isDrawing || !drawStart || !drawEnd) {
       setIsDrawing(false);
       setDrawingPreview(null);
+      setDrawStart(null); 
+      setDrawEnd(null);   
       return;
     }
     
@@ -159,8 +173,9 @@ export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gri
     const hasCollision = checkCollision(binInMm);
     const isValidSize = validateBinSize(width, length);
     
+   
     if (isValidSize && !hasCollision) {
-      // Capture state before adding new drawn bin
+     
       if (typeof pushUndoState === 'function') {
         pushUndoState();
       }
@@ -180,13 +195,14 @@ export const useBinDrawing = (gridCols, gridRows, placedBins, setPlacedBins, gri
       setPlacedBins(prev => [...prev, newBin]);
     }
     
+    
     setIsDrawing(false);
     setDrawStart(null);
     setDrawEnd(null);
     setDrawingPreview(null);
     setDrawingError(null);
     setErrorMessage('');
-  }, [isDrawing, drawStart, drawEnd, checkCollision, validateBinSize, setPlacedBins]);
+  }, [isDrawing, drawStart, drawEnd, checkCollision, validateBinSize, setPlacedBins, pushUndoState, GRID_SIZE]);
 
   return {
     isDrawing,
