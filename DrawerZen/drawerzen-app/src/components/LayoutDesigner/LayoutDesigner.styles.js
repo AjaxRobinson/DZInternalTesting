@@ -690,7 +690,7 @@ export const CenterColumn = styled.div`
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
-  min-width: 0;
+  
   height: 75dvh;
 
   ${media.small} {
