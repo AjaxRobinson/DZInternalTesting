@@ -57,16 +57,48 @@ const Card = styled.div`
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
-  
+  ${props => props.$dimsCollapsed ? `max-height: calc(100vh - 90px);` : ''}
   ${media.tablet} {
     padding: ${props => props.$expanded ? '0.75rem' : '1rem'};
     border-radius: 10px;
+    ${props => props.$dimsCollapsed ? `max-height: calc(100vh - 80px);` : ''}
   }
   
   ${media.mobile} {
     padding: 0.75rem;
     margin-top: 0.5rem;
+    ${props => props.$dimsCollapsed ? `max-height: calc(100vh - 70px);` : ''}
   }
+`;
+// Collapsible container for the three dimension inputs + unit toggle
+const DimensionsPanel = styled.div`
+  overflow: hidden;
+  transition: max-height 0.4s ease, opacity 0.35s ease, margin-bottom 0.35s ease;
+  max-height: ${p => p.$collapsed ? '100%' : '320px'};
+  opacity: ${p => p.$collapsed ? 0 : 1};
+  margin-bottom: ${p => p.$collapsed ? '0' : '1rem'};
+  pointer-events: ${p => p.$collapsed ? 'none' : 'auto'};
+`;
+
+const DimensionsPanelHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+`;
+
+const ToggleEditButton = styled.button`
+  background: #4f46e5;
+  border: none;
+  border-radius: 6px;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: #ffffff;
+  transition: background 0.2s;
+  &:hover { background: #4338ca; }
 `;
 
 const InputRow = styled.div`
@@ -477,9 +509,9 @@ const RemoveImageButton = styled.button`
     box-shadow: none;
   }
 
-  ${media.mobile} {
-    padding: 0.45rem 0.9rem;
-    font-size: 0.8rem;
+    ${media.mobile} {
+    padding: 0.65rem 1.25rem;
+    font-size: 0.85rem;
   }
 `;
 
@@ -536,6 +568,10 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
   const gridCols = useMemo(() => drawerMM.width > 0 ? (drawerMM.width / 21) : undefined, [drawerMM.width]);
   const gridRows = useMemo(() => drawerMM.length > 0 ? (drawerMM.length / 21) : undefined, [drawerMM.length]);
   const isExpanded = useMemo(() => image && baseDimensionsMM.width && baseDimensionsMM.length, [image, baseDimensionsMM]);
+  const dimensionsComplete = !!(baseDimensionsMM.width && baseDimensionsMM.length && baseDimensionsMM.height);
+  const collapseDims = dimensionsComplete && !!image; // collapse condition per requirement
+  const [forceOpenDims, setForceOpenDims] = useState(false);
+  const dimsCollapsed = collapseDims && !forceOpenDims;
   const showHeaders = useMemo(() => !isExpanded, [isExpanded]);
   const isValid = useMemo(() => 
     baseDimensionsMM.width && baseDimensionsMM.length && baseDimensionsMM.height && image,
@@ -994,7 +1030,20 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
         </>
       )}
       
-      <Card $expanded={isExpanded}>
+      <Card $expanded={isExpanded} $dimsCollapsed={dimsCollapsed}>
+      <DimensionsPanelHeader>
+           <div style={{ margin:'2px auto' }}>
+            <strong style={{ fontSize: '0.85rem', color: '#374151' }}>Drawer Dimensions</strong>
+           </div>
+           
+            {collapseDims && (
+              <ToggleEditButton type="button" onClick={() => setForceOpenDims(v => !v)}>
+                {forceOpenDims ? 'Hide' : 'Edit'}
+              </ToggleEditButton>
+            )}
+          </DimensionsPanelHeader>
+      <DimensionsPanel $collapsed={dimsCollapsed}>
+        
         <ResponsiveRow>
           <InputGroup>
             <Label>Width ({unit})</Label>
@@ -1050,9 +1099,9 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
             Inches
           </UnitButton>
         </UnitToggle>
-
-        <div>
-          <UploadLabel disabled={!canUploadImage}>
+        </DimensionsPanel>
+        <div style={{ marginTop: dimsCollapsed ? '0.25rem' : '0.5rem' }}>
+          <UploadLabel  /* disabled={!canUploadImage} */ >
             {uploading ? 'Uploading...' : 'Upload Image'}
             <HiddenFileInput
               type="file"
