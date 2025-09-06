@@ -2,7 +2,7 @@ name: Deploy React App
 
 on:
   push:
-    branches: [ stable-build-36bc181 ]
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
