@@ -6,14 +6,23 @@ const ImageTransform = ({
   containerHeight = 400, 
   onTransformChange,
   gridCols = 10,
-  gridRows = 10 
+  gridRows = 10,
+  // When true, the component will size itself to the viewport while honoring the image's aspect ratio
+  fitToViewport = true,
+  // Fractions of the viewport to use as the maximum bounding box
+  maxViewportWidthFraction = 0.9,
+  maxViewportHeightFraction = 0.8
 }) => {
   // Determine viewport orientation and match it
   const isViewportLandscape = window.innerWidth > window.innerHeight;
+  // Track current container size (CSS pixels). Defaults to provided props but can be overridden responsively
+  const [responsiveSize, setResponsiveSize] = useState({ width: containerWidth, height: containerHeight });
+  const prevSizeRef = useRef({ width: containerWidth, height: containerHeight });
+  const userChangedCornersRef = useRef(false);
   
   // Initialize corners based on image and viewport orientation
   const [imageCorners, setImageCorners] = useState(() => {
-    const margin = 50;
+    const margin = 40;
     return {
       topLeft: { x: margin, y: margin },
       topRight: { x: containerWidth - margin, y: margin },
@@ -32,6 +41,44 @@ const ImageTransform = ({
   const canvasRef = useRef(null);
   const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
   const [needsRotation, setNeedsRotation] = useState(false);
+  
+  // Compute responsive size based on image aspect ratio and viewport
+  useEffect(() => {
+    if (!fitToViewport) return;
+    // Cannot size without a known image dimension; wait for load
+    const iw = imageNaturalSize.width;
+    const ih = imageNaturalSize.height;
+    if (!iw || !ih) return;
+
+    const applySize = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const padding = 21; // account for surrounding UI padding
+      const maxW = Math.max(300, Math.floor(vw * maxViewportWidthFraction) - padding);
+      const maxH = Math.max(200, Math.floor(vh * maxViewportHeightFraction) - padding);
+
+      const imgW = needsRotation ? ih : iw;
+      const imgH = needsRotation ? iw : ih;
+      const aspect = imgW / imgH;
+
+      let w = maxW;
+      let h = Math.round(w / aspect);
+      if (h > maxH) {
+        h = maxH;
+        w = Math.round(h * aspect);
+      }
+
+      // Avoid zero
+      w = Math.max(1, w);
+      h = Math.max(1, h);
+
+      setResponsiveSize(prev => ({ width: w, height: h }));
+    };
+
+    applySize();
+    window.addEventListener('resize', applySize);
+    return () => window.removeEventListener('resize', applySize);
+  }, [fitToViewport, imageNaturalSize.width, imageNaturalSize.height, needsRotation, maxViewportWidthFraction, maxViewportHeightFraction]);
   
   // Check if image needs rotation to match viewport orientation
   useEffect(() => {
@@ -239,6 +286,7 @@ const ImageTransform = ({
   const handleMouseDown = (corner, event) => {
     event.preventDefault();
     event.stopPropagation();
+  userChangedCornersRef.current = true;
     setDragState({
       isDragging: true,
       corner
@@ -284,6 +332,29 @@ const ImageTransform = ({
       onTransformChange(imageCorners);
     }
   }, [imageCorners, onTransformChange]);
+
+  // When container size changes (due to responsive sizing), scale corners proportionally
+  useEffect(() => {
+    const prev = prevSizeRef.current;
+    const curr = responsiveSize;
+    if (!prev || !prev.width || !prev.height) {
+      prevSizeRef.current = curr;
+      return;
+    }
+    if (prev.width === curr.width && prev.height === curr.height) return;
+
+    const sx = curr.width / prev.width;
+    const sy = curr.height / prev.height;
+
+    setImageCorners(prevCorners => ({
+      topLeft: { x: prevCorners.topLeft.x * sx, y: prevCorners.topLeft.y * sy },
+      topRight: { x: prevCorners.topRight.x * sx, y: prevCorners.topRight.y * sy },
+      bottomLeft: { x: prevCorners.bottomLeft.x * sx, y: prevCorners.bottomLeft.y * sy },
+      bottomRight: { x: prevCorners.bottomRight.x * sx, y: prevCorners.bottomRight.y * sy }
+    }));
+
+    prevSizeRef.current = curr;
+  }, [responsiveSize.width, responsiveSize.height]);
   
   // Corner handle styles
   const cornerStyle = {
@@ -312,8 +383,8 @@ const ImageTransform = ({
         ref={containerRef}
         style={{
           position: 'relative',
-          width: containerWidth,
-          height: containerHeight,
+          width: responsiveSize.width,
+          height: responsiveSize.height,
           border: '2px solid #e5e7eb',
           borderRadius: '8px',
           overflow: 'visible',
@@ -324,8 +395,8 @@ const ImageTransform = ({
         {/* Canvas for image */}
         <canvas
           ref={canvasRef}
-          width={containerWidth}
-          height={containerHeight}
+          width={responsiveSize.width}
+          height={responsiveSize.height}
           style={{
             position: 'absolute',
             top: 0,
@@ -375,13 +446,13 @@ const ImageTransform = ({
             position: 'absolute',
             top: '-200px',
             left: '-200px',
-            width: containerWidth + 400,
-            height: containerHeight + 400,
+            width: responsiveSize.width + 400,
+            height: responsiveSize.height + 400,
             pointerEvents: 'none',
             zIndex: 800,
             overflow: 'visible'
           }}
-          viewBox={`-200 -200 ${containerWidth + 400} ${containerHeight + 400}`}
+          viewBox={`-200 -200 ${responsiveSize.width + 400} ${responsiveSize.height + 400}`}
         >
           {/* Image outline */}
           <polygon
