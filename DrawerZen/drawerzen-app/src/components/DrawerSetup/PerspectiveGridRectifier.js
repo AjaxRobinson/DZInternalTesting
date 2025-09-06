@@ -825,10 +825,95 @@ const PerspectiveGridRectifier = forwardRef(function PerspectiveGridRectifier({
           )}
         </div>
 
-  {/* Bottom overlay removed: perspective calculation UI deleted per request */}
+        <div 
+          style={{
+            position: 'absolute',
+            bottom: 2,
+            left: 8,
+            right: 8,
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 8,
+            justifyContent: 'flex-start',
+            alignItems: 'center',
+            pointerEvents: 'none'
+          }}
+        >
+          <div 
+            style={{
+              color: '#fff',
+              fontSize: 12,
+              background: 'rgba(0,0,0,0.55)',
+              padding: '6px 8px',
+              borderRadius: 6,
+              pointerEvents: 'auto'
+            }}
+          >
+            Drag the blue corners to outline the drawer; initial shape exaggerates perspective so you can see the correction.
+          </div>
+          <PerspectiveStrength 
+            homographyGetter={() => {
+              try {
+                const meta = JSON.parse(sessionStorage.getItem('dz_last_rectify_meta'));
+                return meta?.homography || null;
+              } catch {
+                return null;
+              }
+            }} 
+          />
+        </div>
       </div>
     </div>
   );
 });
+
+// Perspective strength component
+const PerspectiveStrength = ({ homographyGetter }) => {
+  const [strength, setStrength] = useState(null);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const H = homographyGetter?.();
+      if (!H || H.length < 9) {
+        setStrength(null);
+        return;
+      }
+      
+      const h31 = H[6];
+      const h32 = H[7];
+      const mag = Math.sqrt(h31 * h31 + h32 * h32);
+      
+      let label;
+      if (mag < 1e-5) label = 'none';
+      else if (mag < 5e-5) label = 'very weak';
+      else if (mag < 2e-4) label = 'weak';
+      else if (mag < 8e-4) label = 'moderate';
+      else label = 'strong';
+      
+      setStrength({ mag, label, h31, h32 });
+    }, 800);
+    
+    return () => clearInterval(id);
+  }, [homographyGetter]);
+
+  return (
+    <div 
+      style={{
+        color: '#fff',
+        fontSize: 11,
+        background: 'rgba(15,23,42,0.55)',
+        padding: '4px 6px',
+        borderRadius: 4,
+        pointerEvents: 'auto'
+      }}
+    >
+      <strong>Perspective:</strong> {
+        strength ? 
+        `${strength.label} (|h31,h32|≈${strength.mag.toExponential(2)})` : 
+        'n/a'
+      }
+    </div>
+  );
+};
 
 export default PerspectiveGridRectifier;

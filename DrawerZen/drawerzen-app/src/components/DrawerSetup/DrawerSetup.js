@@ -57,51 +57,16 @@ const Card = styled.div`
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
-  /* When dimensions panel collapsed ensure content fits viewport */
-  ${props => props.$dimsCollapsed ? `max-height: calc(100vh - 90px);` : ''}
   
   ${media.tablet} {
     padding: ${props => props.$expanded ? '0.75rem' : '1rem'};
     border-radius: 10px;
-    ${props => props.$dimsCollapsed ? `max-height: calc(100vh - 80px);` : ''}
   }
   
   ${media.mobile} {
     padding: 0.75rem;
     margin-top: 0.5rem;
-    ${props => props.$dimsCollapsed ? `max-height: calc(100vh - 70px);` : ''}
   }
-`;
-
-// Collapsible container for the three dimension inputs + unit toggle
-const DimensionsPanel = styled.div`
-  overflow: hidden;
-  transition: max-height 0.4s ease, opacity 0.35s ease, margin-bottom 0.35s ease;
-  max-height: ${p => p.$collapsed ? '0' : '320px'};
-  opacity: ${p => p.$collapsed ? 0 : 1};
-  margin-bottom: ${p => p.$collapsed ? '0' : '1rem'};
-  pointer-events: ${p => p.$collapsed ? 'none' : 'auto'};
-`;
-
-const DimensionsPanelHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-`;
-
-const ToggleEditButton = styled.button`
-  background: #e5e7eb;
-  border: none;
-  border-radius: 6px;
-  padding: 0.45rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  color: #374151;
-  transition: background 0.2s;
-  &:hover { background: #d1d5db; }
 `;
 
 const InputRow = styled.div`
@@ -571,10 +536,6 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
   const gridCols = useMemo(() => drawerMM.width > 0 ? (drawerMM.width / 21) : undefined, [drawerMM.width]);
   const gridRows = useMemo(() => drawerMM.length > 0 ? (drawerMM.length / 21) : undefined, [drawerMM.length]);
   const isExpanded = useMemo(() => image && baseDimensionsMM.width && baseDimensionsMM.length, [image, baseDimensionsMM]);
-  const dimensionsComplete = !!(baseDimensionsMM.width && baseDimensionsMM.length && baseDimensionsMM.height);
-  const collapseDims = dimensionsComplete && !!image; // collapse condition per requirement
-  const [forceOpenDims, setForceOpenDims] = useState(false);
-  const dimsCollapsed = collapseDims && !forceOpenDims;
   const showHeaders = useMemo(() => !isExpanded, [isExpanded]);
   const isValid = useMemo(() => 
     baseDimensionsMM.width && baseDimensionsMM.length && baseDimensionsMM.height && image,
@@ -1027,80 +988,69 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
         <>
           <PageTitle $visible={showHeaders}>Drawer Setup</PageTitle>
           <PageSubtitle $visible={showHeaders}>
-            Upload an image of your drawer and specify the width, length, and depth to begin. <br />
-            Ensure the image clearly shows the bottom corners of the drawer.
+            Upload an image of your sketch and specify the drawer dimensions to begin.
           </PageSubtitle>
         </>
       )}
       
-      <Card $expanded={isExpanded} $dimsCollapsed={dimsCollapsed}>
-        <DimensionsPanel $collapsed={dimsCollapsed}>
-          <DimensionsPanelHeader>
-            <strong style={{ fontSize: '0.85rem', color: '#374151' }}>Drawer Dimensions</strong>
-            {collapseDims && (
-              <ToggleEditButton type="button" onClick={() => setForceOpenDims(v => !v)}>
-                {forceOpenDims ? 'Hide' : 'Edit'}
-              </ToggleEditButton>
-            )}
-          </DimensionsPanelHeader>
-          <ResponsiveRow>
-            <InputGroup>
-              <Label>Width ({unit})</Label>
-              <Input
-                type="number"
-                value={displayDims.width}
-                onChange={(e) => handleInputChange('width', e.target.value)}
-                onBlur={(e) => handleInputBlur('width', e.target.value)}
-                placeholder={unit === 'mm' ? 'e.g. 400' : 'e.g. 15.7'}
-                min={unit === 'mm' ? '42' : (42/25.4).toFixed(1)}
-                step={unit === 'mm' ? '1' : '0.1'}
-              />
-            </InputGroup>
+      <Card $expanded={isExpanded}>
+        <ResponsiveRow>
+          <InputGroup>
+            <Label>Width ({unit})</Label>
+            <Input
+              type="number"
+              value={displayDims.width}
+              onChange={(e) => handleInputChange('width', e.target.value)}
+              onBlur={(e) => handleInputBlur('width', e.target.value)}
+              placeholder={unit === 'mm' ? 'e.g. 400' : 'e.g. 15.7'}
+              min={unit === 'mm' ? '42' : (42/25.4).toFixed(1)}
+              step={unit === 'mm' ? '1' : '0.1'}
+            />
+          </InputGroup>
 
-            <InputGroup>
-              <Label>Length ({unit})</Label>
-              <Input
-                type="number"
-                value={displayDims.length}
-                onChange={(e) => handleInputChange('length', e.target.value)}
-                onBlur={(e) => handleInputBlur('length', e.target.value)}
-                placeholder={unit === 'mm' ? 'e.g. 300' : 'e.g. 11.8'}
-                min={unit === 'mm' ? '42' : (42/25.4).toFixed(1)}
-                step={unit === 'mm' ? '1' : '0.1'}
-              />
-            </InputGroup>
+          <InputGroup>
+            <Label>Length ({unit})</Label>
+            <Input
+              type="number"
+              value={displayDims.length}
+              onChange={(e) => handleInputChange('length', e.target.value)}
+              onBlur={(e) => handleInputBlur('length', e.target.value)}
+              placeholder={unit === 'mm' ? 'e.g. 300' : 'e.g. 11.8'}
+              min={unit === 'mm' ? '42' : (42/25.4).toFixed(1)}
+              step={unit === 'mm' ? '1' : '0.1'}
+            />
+          </InputGroup>
 
-            <InputGroup>
-              <Label>Height ({unit})</Label>
-              <Input
-                type="number"
-                value={displayDims.height}
-                onChange={(e) => handleInputChange('height', e.target.value)}
-                onBlur={(e) => handleInputBlur('height', e.target.value)}
-                placeholder={unit === 'mm' ? 'e.g. 50' : 'e.g. 2.0'}
-                min={unit === 'mm' ? '20' : (20/25.4).toFixed(1)}
-                step={unit === 'mm' ? '1' : '0.1'}
-              />
-            </InputGroup>
-          </ResponsiveRow>
+          <InputGroup>
+            <Label>Height ({unit})</Label>
+            <Input
+              type="number"
+              value={displayDims.height}
+              onChange={(e) => handleInputChange('height', e.target.value)}
+              onBlur={(e) => handleInputBlur('height', e.target.value)}
+              placeholder={unit === 'mm' ? 'e.g. 50' : 'e.g. 2.0'}
+              min={unit === 'mm' ? '20' : (20/25.4).toFixed(1)}
+              step={unit === 'mm' ? '1' : '0.1'}
+            />
+          </InputGroup>
+        </ResponsiveRow>
 
-          <UnitToggle>
-            <UnitButton 
-              $active={unit === 'mm'} 
-              onClick={() => setUnit('mm')}
-            >
-              Millimeters
-            </UnitButton>
-            <UnitButton 
-              $active={unit === 'inches'} 
-              onClick={() => setUnit('inches')}
-            >
-              Inches
-            </UnitButton>
-          </UnitToggle>
-        </DimensionsPanel>
+        <UnitToggle>
+          <UnitButton 
+            $active={unit === 'mm'} 
+            onClick={() => setUnit('mm')}
+          >
+            Millimeters
+          </UnitButton>
+          <UnitButton 
+            $active={unit === 'inches'} 
+            onClick={() => setUnit('inches')}
+          >
+            Inches
+          </UnitButton>
+        </UnitToggle>
 
-  <div style={{ marginTop: dimsCollapsed ? '0.25rem' : '0.5rem' }}>
+        <div>
           <UploadLabel disabled={!canUploadImage}>
             {uploading ? 'Uploading...' : 'Upload Image'}
             <HiddenFileInput
