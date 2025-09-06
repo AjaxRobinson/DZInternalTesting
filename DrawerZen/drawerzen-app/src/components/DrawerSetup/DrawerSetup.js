@@ -74,7 +74,7 @@ const Card = styled.div`
 const DimensionsPanel = styled.div`
   overflow: hidden;
   transition: max-height 0.4s ease, opacity 0.35s ease, margin-bottom 0.35s ease;
-  max-height: ${p => p.$collapsed ? '100%' : '320px'};
+  max-height: ${p => p.$collapsed ? '0' : '320px'};
   opacity: ${p => p.$collapsed ? 0 : 1};
   margin-bottom: ${p => p.$collapsed ? '0' : '1rem'};
   pointer-events: ${p => p.$collapsed ? 'none' : 'auto'};
