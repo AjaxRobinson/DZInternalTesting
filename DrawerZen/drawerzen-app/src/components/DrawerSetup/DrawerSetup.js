@@ -988,7 +988,8 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
         <>
           <PageTitle $visible={showHeaders}>Drawer Setup</PageTitle>
           <PageSubtitle $visible={showHeaders}>
-            Upload an image of your sketch and specify the drawer dimensions to begin.
+          Upload an image of your drawer and specify the width, length, and depth to begin. <br />
+          Ensure the image clearly shows the bottom corners of the drawer.
           </PageSubtitle>
         </>
       )}
