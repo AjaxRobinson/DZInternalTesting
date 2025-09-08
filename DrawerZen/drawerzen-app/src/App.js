@@ -255,7 +255,12 @@ function App() {
   return (
     <AuthProvider>
       <DndProvider backend={HTML5Backend}>
-        <Router>
+        <Router
+         future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true
+        }}
+        >
           <AppContainer>
             <Header /> {/* Remove ProtectedRoute wrapper */}
             <AppContent 
