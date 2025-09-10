@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const signUp = useCallback(async (email, password,displayName) => {
+  const signUp = useCallback(async (email, password,displayName,address) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -69,6 +69,7 @@ export const AuthProvider = ({ children }) => {
         options: {
           data: {
             display_name: displayName,
+            address: address
           },
         }
       });

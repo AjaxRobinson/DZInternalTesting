@@ -96,6 +96,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [address, setAddress] = useState('');
 
   const { signIn, signUp, resetPassword } = useAuth();
   const navigate = useNavigate();
@@ -112,7 +113,7 @@ const Login = () => {
         if (error) throw error;
         setSuccess('Password reset email sent! Check your inbox.');
       } else if (isSignUp) {
-        const { error } = await signUp(email, password, displayName);
+        const { error } = await signUp(email, password, displayName, address);
         if (error) throw error;
         setSuccess('Check your email for confirmation!');
         setIsSignUp(false);
@@ -133,6 +134,7 @@ const Login = () => {
     setIsSignUp(false);
     setError('');
     setSuccess('');
+    setAddress('');
   };
 
   if (isForgotPassword) {
@@ -185,6 +187,17 @@ const Login = () => {
             />
           </FormGroup>
         )}
+        {isSignUp && (
+  <FormGroup>
+    <Input
+      type="text"
+      placeholder="Address"
+      value={address}
+      onChange={(e) => setAddress(e.target.value)}
+      required={isSignUp}
+    />
+  </FormGroup>
+)}
 
         <FormGroup>
           <Input

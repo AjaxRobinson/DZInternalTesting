@@ -146,7 +146,7 @@ class SupabaseService {
    * @returns {Promise<Object>} Insert result
    */
   async insertRecord(record) {
-    return this.insertIntoWithDuplicateCheck(this.table, record, 'sample_id');
+    return this.insertIntoWithDuplicateCheck(this.table, record, 'project_id');
   }
 
   /**
@@ -156,7 +156,7 @@ class SupabaseService {
    * @param {string} duplicateCheckField - Field to check for duplicates (default: 'sample_id' for dataset table)
    * @returns {Promise<Object>} Insert result
    */
-  async insertIntoWithDuplicateCheck(tableName, record, duplicateCheckField = 'sample_id') {
+  async insertIntoWithDuplicateCheck(tableName, record, duplicateCheckField = 'project_id') {
     if (!this.isEnabled()) {
       return { success: false, error: 'Supabase not configured' };
     }
@@ -473,10 +473,10 @@ class SupabaseService {
 
   /**
    * Get record by sample_id (for dataset table)
-   * @param {string} sampleId - Sample ID
+   * @param {string} projectId - Sample ID
    * @returns {Promise<Object>} Query result
    */
-  async getDatasetBySampleId(sampleId) {
+  async getDatasetBySampleId(projectId) {
     if (!this.isEnabled()) {
       return { success: false, error: 'Supabase not configured' };
     }
@@ -486,7 +486,7 @@ class SupabaseService {
       let query = this.client
         .from(this.table)
         .select('*')
-        .eq('sample_id', sampleId);
+        .eq('project_id', projectId);
       
       // If user is authenticated, filter by user_id
       if (userId) {
@@ -658,15 +658,18 @@ class SupabaseService {
       if (existingSessions && existingSessions.length > 0) {
         return { success: true, data: existingSessions[0] };
       }
-
+      const { browser, os, device } = getClientInfo();
       // Create new session
       const sessionData = {
         id: sessionIdToUse,
         started_at: new Date().toISOString(),
-        last_active_at: new Date().toISOString()
+        last_active_at: new Date().toISOString(),
+        client_device: device,
+        client_os: os,
+        client_browser: browser
       };
 
-      // Add user_id if user is authenticated
+      
       if (userId) {
         sessionData.user_id = userId;
       }
@@ -698,6 +701,55 @@ class SupabaseService {
       const v = c === 'x' ? r : (r & 0x3 | 0x8);
       return v.toString(16);
     });
+  }
+  getClientInfo() {
+    const ua = navigator.userAgent;
+    let browser = "Unknown";
+    let os = "Unknown";
+
+     // --- Detect Device ---
+    let device = null;
+    if (/Mobi|Android/i.test(ua)) {
+      device = "Mobile";
+    } else if (/Tablet|iPad/i.test(ua)) {
+      device = "Tablet";
+    } else {
+      device = "Desktop";
+    }
+
+    // --- Detect Browser ---
+    if (/chrome|crios|crmo/i.test(ua) && !/edge|edg|opr/i.test(ua)) {
+      browser = "Chrome";
+    } else if (/firefox|fxios/i.test(ua)) {
+      browser = "Firefox";
+    } else if (/safari/i.test(ua) && !/chrome|crios|crmo/i.test(ua)) {
+      browser = "Safari";
+    } else if (/edg/i.test(ua)) {
+      browser = "Edge";
+    } else if (/opr|opera/i.test(ua)) {
+      browser = "Opera";
+    }
+  
+    // --- Detect OS ---
+    if (/windows nt 10/i.test(ua)) {
+      os = "Windows 10";
+    } else if (/windows nt 11/i.test(ua)) {
+      os = "Windows 11";
+    } else if (/mac os x/i.test(ua)) {
+      os = "macOS";
+    } else if (/android/i.test(ua)) {
+      os = "Android";
+      device = "Mobile";
+    } else if (/iphone|ipad|ipod/i.test(ua)) {
+      os = "iOS";
+      device = "Mobile";
+    } else if (/linux/i.test(ua)) {
+      os = "Linux";
+    }
+  
+  
+  
+    return { browser, os, device };
   }
 }
 

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState ,useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { calculateBinPrice, calculateBaseplateCost } from '../LayoutDesigner/LayoutDesigner.utils';
 import { GRID_SIZE } from '../LayoutDesigner/LayoutDesigner.constants';
-
+import SupabaseService from '../../services/SupabaseService';
 // Styled Components
 const ReviewContainer = styled.div`
   max-width: 1000px;
@@ -317,6 +317,7 @@ export default function OrderReview({ bins = {}, drawerDimensions, onProceedToCh
   const actualDrawerDimensions = serverData?.drawerDimensions || drawerDimensions;
   const layoutData = serverData?.layoutConfig || placedBins;
   
+  
   // Ensure actualPlacedBins is always an array
   const actualPlacedBins = Array.isArray(layoutData) ? layoutData : 
                           (layoutData && Array.isArray(layoutData.bins)) ? layoutData.bins :
@@ -325,6 +326,32 @@ export default function OrderReview({ bins = {}, drawerDimensions, onProceedToCh
   // Convert dimensions to cells
   const drawerCellsX = Math.ceil(actualDrawerDimensions.width / GRID_SIZE);
   const drawerCellsY = Math.ceil(actualDrawerDimensions.length / GRID_SIZE);
+
+  useEffect(() => {
+    const updateProjectStatus = async () => {
+      try {
+        const currentProjectId = localStorage.getItem('currentProjectId');
+        
+        if (currentProjectId) {
+          const result = await SupabaseService.createOrVerifyProject(currentProjectId, {
+            status: 'review'
+          });
+
+          if (result.success) {
+            console.log('✅ Project status updated to review:', currentProjectId);
+          } else {
+            console.error('❌ Failed to update project status:', result.error?.message || 'Unknown error');
+          }
+        } else {
+          console.warn('No currentProjectId found in localStorage');
+        }
+      } catch (error) {
+        console.error('🚨 Error updating project status:', error.message);
+      }
+    };
+
+    updateProjectStatus();
+  }, []);
 
   const calculateSubtotal = () => {
     // Ensure actualPlacedBins is an array before calling reduce

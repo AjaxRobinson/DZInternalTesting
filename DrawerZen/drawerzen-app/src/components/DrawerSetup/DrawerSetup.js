@@ -800,7 +800,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
       const dateFolder = now.toISOString().slice(0, 10);
       const rand = Math.random().toString(16).slice(2, 8);
       const isoStamp = new Date().toISOString().replace(/:/g, '-');
-      const sampleId = `${isoStamp}_${rand}`;
+      const projectId = localStorage.getItem('currentProjectId');
       const originalKey = `raw/${dateFolder}/${rand}.jpg`;
       const rectifiedKey = `rectified/${dateFolder}/${rand}.jpg`;
   
@@ -824,7 +824,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
         const client = getClientInfo();
   
         await SupabaseService.insertRecord({
-          sample_id: sampleId,
+          project_id: projectId,
           image_original_key: originalKey,
           image_rectified_key: rectifiedKey,
           orig_size_px,
@@ -852,7 +852,7 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
             ...(dataManager.appData.uploadedImage || {}),
             rectifyMeta: {
               ...(dataManager.appData.uploadedImage?.rectifyMeta || {}),
-              sample_id: sampleId,
+              sample_id: projectId,
               image_original_key: originalKey,
               image_rectified_key: rectifiedKey
             }
