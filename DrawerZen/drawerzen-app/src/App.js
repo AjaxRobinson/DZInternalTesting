@@ -14,7 +14,7 @@ import Checkout from './components/Checkout/Checkout';
 import OrderSuccess from './components/OrderSuccess/OrderSuccess';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary.js';
 import SupabaseService from './services/SupabaseService';
-import { AuthProvider } from './contexts/AuthContext'; // Keep AuthProvider but remove ProtectedRoute
+import { AuthProvider,useAuth } from './contexts/AuthContext'; // Keep AuthProvider but remove ProtectedRoute
 
 // Hooks
 import { useDataManagement } from './hooks/useDataManagement'; 
@@ -46,7 +46,15 @@ const MainContent = styled.main`
     }
   }
 `;
-
+const parseDisplayName = (displayName) => {
+  if (!displayName) return { firstName: '', lastName: '' };
+  const parts = displayName.trim().split(/\s+/);
+  if (parts.length === 0) return { firstName: '', lastName: '' };
+  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+  const firstName = parts[0];
+  const lastName = parts.slice(1).join(' ');
+  return { firstName, lastName };
+};
 // Robust UUID generator
 function generateUUID() {
   // Try to use the imported uuid library first
@@ -64,6 +72,53 @@ function generateUUID() {
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+}
+// --- Component that consumes Auth and Data Management ---
+function UserDataSync() {
+  const { user } = useAuth(); 
+  const { updateCustomerInfo } = useDataManagement(); 
+  const previousUserIdRef = useRef(null);
+  const hasProcessedLoginRef = useRef(false);
+
+  useEffect(() => {
+    if (user === undefined) return; // Still loading
+
+    const currentUserId = user?.id || null;
+    
+    // Only process if user actually changed
+    if (currentUserId !== previousUserIdRef.current) {
+      if (user && user.id) {
+        // User logged in - only set if we haven't processed this login yet
+        if (!hasProcessedLoginRef.current) {
+          console.log("Setting customer info from user:", user);
+          const email = user.email || '';
+          const userMetadata = user.user_metadata || {};
+          const displayName = userMetadata.display_name || '';
+          const { firstName, lastName } = parseDisplayName(displayName);
+          const address = userMetadata.address || '';
+
+          updateCustomerInfo({
+            email,
+            firstName,
+            lastName,
+            displayName,
+            address
+          });
+          
+          hasProcessedLoginRef.current = true;
+        }
+      } else if (user === null) {
+        // User logged out - but don't clear customer info
+        console.log("User logged out, preserving customer info");
+        // Don't call updateCustomerInfo with empty data
+        hasProcessedLoginRef.current = false;
+      }
+      
+      previousUserIdRef.current = currentUserId;
+    }
+  }, [user, updateCustomerInfo]);
+
+  return null;
 }
 
 // Custom hook for project initialization
@@ -130,7 +185,9 @@ function useProjectInitialization(appData) {
           drawer_height_mm: appData.drawerDimensions?.height || 21,
           status: 'layout'
         });
-        
+        if(projectResult.Existcheck && projectResult.success){
+          await SupabaseService.updateProjectStatus(currentProjectId,'layout');
+        }
         if (projectResult.success) {
           setProjectId(currentProjectId);
           console.log('✅ Project ready:', currentProjectId);
@@ -262,7 +319,8 @@ function App() {
         }}
         >
           <AppContainer>
-            <Header /> {/* Remove ProtectedRoute wrapper */}
+            <Header />
+            <UserDataSync />
             <AppContent 
               dataManager={dataManager}
               defaultBins={defaultBins}
@@ -277,15 +335,18 @@ function App() {
 function AppContent({ dataManager, defaultBins }) {
   const location = useLocation();
   const isLayoutPage = location.pathname === '/layout';
-  const { appData, updateDrawerDimensions, updateLayoutConfig, updateOrderData, updateUploadedImage } = dataManager;
+  const { appData, updateDrawerDimensions, updateLayoutConfig, updateOrderData, updateUploadedImage, updateCustomerInfo  } = dataManager;
   const navUnderlay = location.state?.underlayImage;
 
   return (
     <MainContent className={isLayoutPage ? 'layout-page' : ''}>
+     
       <ErrorBoundary>
+     
         <Routes>
           {/* Step 1: Drawer Dimensions - Now accessible without login */}
           <Route path="/" element={
+            
             <DrawerSetup 
               onComplete={(data) => {
                 // Persist drawer dimensions
@@ -301,7 +362,7 @@ function AppContent({ dataManager, defaultBins }) {
               dataManager={dataManager}
             />
           } />
-
+   
           {/* Step 2: Layout Design - Using separate component to prevent re-renders */}
           <Route path="/layout" element={
             appData.drawerDimensions ? (
@@ -341,6 +402,7 @@ function AppContent({ dataManager, defaultBins }) {
                 drawerDimensions={appData.drawerDimensions}
                 customerInfo={appData.customerInfo}
                 dataManager={dataManager}
+                
               />
             ) : (
               <Navigate to="/review" />
@@ -355,6 +417,7 @@ function AppContent({ dataManager, defaultBins }) {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ErrorBoundary>
+      <UserDataSync />
     </MainContent>
   );
 }

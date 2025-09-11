@@ -333,7 +333,7 @@ export default function OrderReview({ bins = {}, drawerDimensions, onProceedToCh
         const currentProjectId = localStorage.getItem('currentProjectId');
         
         if (currentProjectId) {
-          const result = await SupabaseService.createOrVerifyProject(currentProjectId, {
+          const result = await SupabaseService.updateProjectStatus(currentProjectId, {
             status: 'review'
           });
 

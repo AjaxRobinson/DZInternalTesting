@@ -800,11 +800,42 @@ const DrawerSetup = ({ onComplete, initialDimensions, dataManager }) => {
       const dateFolder = now.toISOString().slice(0, 10);
       const rand = Math.random().toString(16).slice(2, 8);
       const isoStamp = new Date().toISOString().replace(/:/g, '-');
-      const projectId = localStorage.getItem('currentProjectId');
+      let projectId = localStorage.getItem('currentProjectId');
       const originalKey = `raw/${dateFolder}/${rand}.jpg`;
       const rectifiedKey = `rectified/${dateFolder}/${rand}.jpg`;
   
       try {
+        let sessionId = null;
+    try {
+      const sessionResult = await SupabaseService.createOrGetSession();
+      if (sessionResult.success) {
+        sessionId = sessionResult.data.id;
+        console.log('✅ Session created/obtained:', sessionId);
+      }
+    } catch (sessionError) {
+      console.warn('⚠️ Session creation failed:', sessionError.message);
+    }
+        if (!projectId) {
+          console.log('Creating project immediately...');
+          const tempProjectId = await SupabaseService.generateUUID();
+          const projectResult = await SupabaseService.createOrVerifyProject(tempProjectId, {
+            session_id: sessionId,
+            drawer_width_mm: rawDimensions.width,
+            drawer_length_mm: rawDimensions.length,
+            drawer_height_mm: rawDimensions.height,
+            status: 'draft'
+          });
+          
+          if (projectResult.success && !projectResult.guest) {
+            projectId = projectResult.data.id;
+            localStorage.setItem('currentProjectId', projectId);
+          } else {
+            // Fallback to temporary ID
+            projectId = tempProjectId;
+            localStorage.setItem('currentProjectId', projectId);
+          }
+        }
+        
         // Upload raw image
         if (originalFile) {
           await SupabaseService.uploadImage(originalKey, originalFile);

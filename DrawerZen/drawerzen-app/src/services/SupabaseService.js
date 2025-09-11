@@ -165,7 +165,7 @@ class SupabaseService {
       // Add user_id to record if user is authenticated
       const userId = await this.getCurrentUserId();
       const recordWithUser = userId ? { ...record, user_id: userId } : record;
-
+      if(userId){
       // Check for existing record with same sample_id
       const { data: existingRecords, error: checkError } = await this.client
         .from(tableName)
@@ -231,6 +231,7 @@ class SupabaseService {
         inserted: true,
         message: 'Record inserted successfully' 
       };
+    }
     } catch (error) {
       console.error(`❌ Record operation error for ${tableName}:`, error);
       return { success: false, error };
@@ -251,6 +252,7 @@ class SupabaseService {
     try {
       // Add user_id to record if user is authenticated
       const userId = await this.getCurrentUserId();
+      if(userId){
       const recordWithUser = Array.isArray(record) 
         ? record.map(r => userId ? { ...r, user_id: userId } : r)
         : userId ? { ...record, user_id: userId } : record;
@@ -267,6 +269,9 @@ class SupabaseService {
 
       console.log(`✅ Records inserted into ${tableName}:`, data);
       return { success: true, data };
+    }else{
+      return { success: true, data:'Geust data' };
+    }
     } catch (error) {
       console.error(`❌ Record insertion error for ${tableName}:`, error);
       return { success: false, error };
@@ -567,12 +572,13 @@ class SupabaseService {
       // If project exists, return it
       if (existingProjects && existingProjects.length > 0) {
         console.log('✅ Project already exists:', existingProjects[0].id);
-        return { success: true, data: existingProjects[0] };
+        return { success: true, data: existingProjects[0] ,Existcheck: true};
       }
 
       // Create new project with required fields
       const newProjectData = {
         id: projectId,
+        session_id : localStorage.getItem('currentSessionId'),
         sample_id: projectData.sample_id || `sample_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         drawer_width_mm: projectData.drawer_width_mm || 320,
         drawer_length_mm: projectData.drawer_length_mm || 320,
@@ -610,7 +616,90 @@ class SupabaseService {
       return { success: false, error };
     }
   }
-
+  async updateProjectStatus(projectId, newStatus, userId = null) {
+    if (!this.isEnabled()) {
+      return { success: false, data: null, error: new Error('Supabase not configured'), guest: false };
+    }
+  
+    try {
+      const currentUserId = userId !== null ? userId : await this.getCurrentUserId();
+      const statusValue = typeof newStatus === 'object' && newStatus.status 
+        ? newStatus.status 
+        : newStatus;
+        
+      // --- CHECK FOR GUEST USER ---
+      if (!currentUserId) {
+        console.warn('Guest user detected. Project status will not be updated in the database.');
+        return { 
+          success: true, 
+          data: null, 
+          error: null, 
+          guest: true 
+        };
+      }
+  
+      // --- AUTHENTICATED USER LOGIC ---
+  
+      // Prepare the update data
+      const updateData = {
+        status: statusValue,
+        updated_at: new Date().toISOString() 
+      };
+  
+      // Perform the update
+      const { data, error } = await this.client
+        .from(this.projectsTable)
+        .update(updateData)
+        .eq('id', projectId)
+        .select(); 
+  
+      if (error) {
+        console.error(`❌ Error updating project ${projectId} status to '${statusValue}':`, error);
+        return { success: false, data: null, error, guest: false };
+      }
+  
+      // Even if data is undefined/empty, the update likely succeeded
+      // Let's fetch the updated project to confirm
+      if (!data || data.length === 0) {
+        console.log(`✅ Project ${projectId} status updated to '${statusValue}' (fetching updated data)`);
+        
+        // Fetch the updated project data
+        const { data: projectData, error: fetchError } = await this.client // ← Fixed destructuring
+          .from(this.projectsTable)
+          .select('*')
+          .eq('id', projectId)
+          .single();
+  
+        if (fetchError) {
+          console.warn(`⚠️ Update succeeded but couldn't fetch updated data:`, fetchError);
+          // Still return success since update happened
+          return { success: true, data: null, error: null, guest: false };
+        }
+  
+        console.log(`✅ Project ${projectId} status confirmed as '${projectData.status}'`); // ← Now projectData exists
+        if (projectData.status !== statusValue) {
+          console.warn(`⚠️ Status mismatch detected. Forcing update...`);
+          // Retry the update
+          const { error: retryError } = await this.client
+            .from(this.projectsTable)
+            .update(updateData)
+            .eq('id', projectId);
+            
+          if (!retryError) {
+            console.log(`✅ Forced update successful`);
+          }
+        }
+        return { success: true, data: projectData, error: null, guest: false };
+      } else {
+        console.log(`✅ Project ${projectId} status updated to '${statusValue}':`, data[0]);
+        return { success: true, data: data[0], error: null, guest: false };
+      }
+  
+    } catch (error) {
+      console.error(`❌ Unexpected error updating project ${projectId} status:`, error);
+      return { success: false, data: null, error, guest: false };
+    }
+  }
   /**
    * Create or get session
    * @param {string} sessionId - Session ID (optional)
@@ -656,9 +745,9 @@ class SupabaseService {
 
       // If session exists, return it
       if (existingSessions && existingSessions.length > 0) {
-        return { success: true, data: existingSessions[0] };
+        return { success: true, data: existingSessions[0]};
       }
-      const { browser, os, device } = getClientInfo();
+      const { browser, os, device } = this.getClientInfo();
       // Create new session
       const sessionData = {
         id: sessionIdToUse,
@@ -672,24 +761,32 @@ class SupabaseService {
       
       if (userId) {
         sessionData.user_id = userId;
-      }
-
-      const { data, error } = await this.client
+        const { data, error } = await this.client
         .from('sessions')
         .insert(sessionData)
         .select();
-
-      if (error) {
-        console.error('Error creating session:', error);
-        return { success: false, error };
+        if (error) {
+          console.error('Error creating session:', error);
+          return { success: false, error };
+        }
+        return { success: true, data: data[0] };
+      }else{
+        console.log("Guest user");
+        return {success:true, data:{id:sessionIdToUse}}
+        
       }
 
-      return { success: true, data: data[0] };
+     
+
+     
+
+     
     } catch (error) {
       console.error('Error in createOrGetSession:', error);
       return { success: false, error };
     }
   }
+  
 
   /**
    * Generate UUID helper method

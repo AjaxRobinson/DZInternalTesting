@@ -119,7 +119,7 @@ export default function OrderSuccess() {
       setSessionId(urlSessionId);
     } else {
       // Try to get from localStorage
-      const sessionData = localStorage.getItem('drawerzen_session');
+      const sessionData = sessionStorage.getItem('drawerzen_session');
       if (sessionData) {
         const parsed = JSON.parse(sessionData);
         setSessionId(parsed.sessionId);

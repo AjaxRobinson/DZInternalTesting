@@ -85,7 +85,13 @@ export const AuthProvider = ({ children }) => {
   const signOut = useCallback(async () => {
     try {
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      if (error){
+        throw error;
+      }else{
+        sessionStorage.clear()
+        localStorage.clear()
+        window.location.href = '/login'
+      }
     } catch (error) {
       console.error('Sign out error:', error);
     }
