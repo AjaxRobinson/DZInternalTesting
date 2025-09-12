@@ -278,14 +278,7 @@ class SupabaseService {
     }
   }
 
-  /**
-   * Insert order record
-   * @param {Object} orderRecord - Order data
-   * @returns {Promise<Object>} Insert result
-   */
-  async insertOrder(orderRecord) {
-    return this.insertInto(this.ordersTable, orderRecord);
-  }
+
 
   /**
    * Save bins for a project
@@ -524,26 +517,26 @@ class SupabaseService {
     }
 
     try {
-      const userId = await this.getCurrentUserId(); 
+      const userId = await this.getCurrentUserId() ; 
         // --- NEW CHECK FOR GUEST USER ---
-    if (!userId) {
-      console.warn('Guest user detected. Project will not be saved to database.');
-      // Option 1a: Return a simulated success without DB interaction
-      // You might want to structure this data similarly to a real DB record
-      const simulatedProjectData = {
-        id: projectId,
-        sample_id: projectData.sample_id || `sample_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-        drawer_width_mm: projectData.drawer_width_mm || 320,
-        drawer_length_mm: projectData.drawer_length_mm || 320,
-        drawer_height_mm: projectData.drawer_height_mm || 21,
-        status: projectData.status || 'draft',
-        unit: projectData.unit || 'mm',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      // Return success but indicate it's not persisted
-      return { success: true, data: simulatedProjectData, guest: true }; 
-    }
+    // if (!userId) {
+    //   console.warn('Guest user detected. Project will not be saved to database.');
+    //   // Option 1a: Return a simulated success without DB interaction
+    //   // You might want to structure this data similarly to a real DB record
+    //   const simulatedProjectData = {
+    //     id: projectId,
+    //     sample_id: projectData.sample_id || `sample_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+    //     drawer_width_mm: projectData.drawer_width_mm || 320,
+    //     drawer_length_mm: projectData.drawer_length_mm || 320,
+    //     drawer_height_mm: projectData.drawer_height_mm || 21,
+    //     status: projectData.status || 'draft',
+    //     unit: projectData.unit || 'mm',
+    //     created_at: new Date().toISOString(),
+    //     updated_at: new Date().toISOString()
+    //   };
+    //   // Return success but indicate it's not persisted
+    //   return { success: true, data: simulatedProjectData, guest: true }; 
+    // }
     
       // Check if project already exists
       let projectQuery = this.client
@@ -628,15 +621,15 @@ class SupabaseService {
         : newStatus;
         
       // --- CHECK FOR GUEST USER ---
-      if (!currentUserId) {
-        console.warn('Guest user detected. Project status will not be updated in the database.');
-        return { 
-          success: true, 
-          data: null, 
-          error: null, 
-          guest: true 
-        };
-      }
+      // if (!currentUserId) {
+      //   console.warn('Guest user detected. Project status will not be updated in the database.');
+      //   return { 
+      //     success: true, 
+      //     data: null, 
+      //     error: null, 
+      //     guest: true 
+      //   };
+      // }
   
       // --- AUTHENTICATED USER LOGIC ---
   
@@ -759,7 +752,6 @@ class SupabaseService {
       };
 
       
-      if (userId) {
         sessionData.user_id = userId;
         const { data, error } = await this.client
         .from('sessions')
@@ -770,11 +762,7 @@ class SupabaseService {
           return { success: false, error };
         }
         return { success: true, data: data[0] };
-      }else{
-        console.log("Guest user");
-        return {success:true, data:{id:sessionIdToUse}}
-        
-      }
+     
 
      
 
@@ -848,6 +836,60 @@ class SupabaseService {
   
     return { browser, os, device };
   }
+  /**
+ * Submit a new order
+ * @param {Object} orderData - The complete order data object
+ * @returns {Promise<Object>} Submission result
+ */
+async submitOrder(orderData) {
+  try {
+    if (!this.isEnabled()) {
+      return { success: false, error: new Error('Supabase not configured') };
+    }
+
+    // The orderData object passed in should already contain user_id
+    // Extract the fields needed for the 'orders' table insert
+    const orderToInsert = {
+      id: this.generateUUID(),
+      project_id: orderData.project_id || null, 
+      total_price_cents: orderData.total_price_cents,
+      bins_cost_cents: orderData.bins_cost_cents,
+      baseplate_cost_cents: orderData.baseplate_cost_cents,
+      currency: orderData.pricing?.currency || 'USD',
+      status: orderData.status || 'pending',
+      bins: orderData.bins, 
+      drawer_dimensions_mm: orderData.drawer_dimensions_mm,
+      pricing: orderData.pricing,
+      shipping_address: orderData.shipping_address, 
+      source_image: orderData.source_image || null,
+      session_id: orderData.session_id || null,
+      user_id: orderData.user_id || null
+    };
+
+    console.log("Attempting to insert order into Supabase:", orderToInsert);
+
+    const { data, error } = await this.client
+      .from(this.ordersTable) // Use the orders table constant
+      .insert([orderToInsert])
+      .select(); // Select the inserted data to return
+
+    if (error) {
+      console.error('Supabase order submission error:', error);
+      return { success: false, error };
+    }
+
+    console.log("Order successfully submitted to Supabase:", data[0]);
+    return {
+      success: true,
+      data: data[0], // Return the inserted record
+      message: 'Order submitted successfully'
+    };
+
+  } catch (error) {
+    console.error('Exception in submitOrder:', error);
+    return { success: false, error };
+  }
+}
 }
 
 export default new SupabaseService();

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate ,useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import Drawer3DView from '../LayoutDesigner/components/Drawer3DView';
 import SupabaseService from '../../services/SupabaseService';
@@ -186,13 +186,50 @@ const SuccessMessage = styled.div`
   margin-bottom: 1rem;
   font-size: 0.875rem;
 `;
+const UserStatusIndicator = styled.div`
+  background: ${props => props.$isLoggedIn ? '#d1fae5' : '#fef3c7'}; /* Green for logged-in, Yellow for guest */
+  color: ${props => props.$isLoggedIn ? '#065f46' : '#92400e'};
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
 
+const UserIcon = styled.span`
+  font-size: 1.2rem;
+`;
 export default function Checkout({ orderData, layoutConfig, drawerDimensions, customerInfo, dataManager }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [userId, setUserId] = useState(null);
+  const [isUserCheckComplete, setIsUserCheckComplete] = useState(false);
+  const effectiveOrderData = location.state?.orderData || orderData;
+  const CurrentSession = localStorage.getItem('currentSessionId');
+  const CurrentProjectId = localStorage.getItem('currentProjectId');
+  useEffect(() => {
+    const fetchUserId = async () => {
+      if (SupabaseService.isEnabled()) {
+        try {
+          const fetchedUserId = await SupabaseService.getCurrentUserId();
+          setUserId(fetchedUserId);
+        } catch (err) {
+          console.error("Error fetching user ID in Checkout:", err);
+        } finally {
+          setIsUserCheckComplete(true); 
+        }
+      } else {
+          setIsUserCheckComplete(true); 
+      }
+    };
 
+    fetchUserId();
+  }, []);
   // Use customer info from data manager
   const [formData, setFormData] = useState({
     email: customerInfo?.email || '',
@@ -207,27 +244,9 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
     phone: customerInfo?.phone || ''
   });
 
-  // Update form data when customer info changes
-  useEffect(() => {
-    if (customerInfo) {
-      setFormData(prev => ({
-        ...prev,
-        email: customerInfo.email || prev.email,
-        firstName: customerInfo.firstName || prev.firstName,
-        lastName: customerInfo.lastName || prev.lastName,
-        address: customerInfo.address || prev.address,
-        apartment: customerInfo.apartment || prev.apartment,
-        city: customerInfo.city || prev.city,
-        state: customerInfo.state || prev.state,
-        zipCode: customerInfo.zipCode || prev.zipCode,
-        country: customerInfo.country || prev.country,
-        phone: customerInfo.phone || prev.phone
-      }));
-    }
-  }, [customerInfo]);
 
   // Use the final total from order data
-  const finalTotal = orderData.total;
+  const finalTotal = effectiveOrderData?.total;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -268,7 +287,8 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
     }
     
     setIsProcessing(true);
-    
+    setError(null);
+
     try {
       // First, ensure all form data is synced to dataManager
       dataManager.updateCustomerInfo(formData);
@@ -281,7 +301,9 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
         drawerDimensions: appData.drawerDimensions,
         layoutConfig: appData.layoutConfig,
         orderData: appData.orderData,
-        imageUrl: appData.uploadedImage?.url
+        imageUrl: appData.uploadedImage?.url,
+        userId: userId, 
+        isGuest: !userId
       });
       
       // Prepare legacy sheet logging payload (do not shadow variable names)
@@ -289,11 +311,11 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
         action: 'appendOrderLog',
         rowData: [
           new Date().toISOString(),
-          dataManager.sessionId || 'session_' + Date.now(),
+          CurrentSession,
           formData.email,
           formData.firstName,
           formData.lastName,
-            formData.phone || '',
+          formData.phone || '',
           formData.address,
           formData.apartment || '',
           formData.city,
@@ -327,6 +349,7 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
           }));
           // Aggregate count for quick summary
           const orderForSubmit = {
+            project_id: CurrentProjectId,
             bins: {
               count: rawBins.length,
               details: binDetails
@@ -376,20 +399,18 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
               const baseplate = appData.orderData?.baseplateCost || 0;
               return Math.round(baseplate * 100);
             })(),
-            session_id: dataManager.sessionId // allow service to generate if falsy
+            session_id: CurrentSession ,// allow service to generate if falsy
+            user_id: userId || null
           };
           const submitRes = await SupabaseService.submitOrder(orderForSubmit);
+
           if (!submitRes.success) {
             console.warn('Supabase submitOrder failed', submitRes.error);
           } else {
             console.log('Supabase submitOrder success', submitRes.data || submitRes.note);
-          }
-        } catch (supaErr) {
-          console.warn('Supabase submitOrder exception', supaErr);
-        }
-      }
-
-      // Make direct request to Google Apps Script (legacy sheet logging)
+           const updateRes = await SupabaseService.updateProjectStatus(CurrentProjectId,'submitted');
+           if(updateRes.success){
+            // Make direct request to Google Apps Script (legacy sheet logging)
       const response = await fetch('https://script.google.com/macros/s/AKfycbw-skmmpZkU3Pz988vPjNd7s5bX0O-1Bb5KBmmeGuMOfEGCRm_WF-Fh0lx8Ts6ioEpB/exec', {
         method: 'POST',
         headers: {
@@ -404,7 +425,15 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
       
       if (result.success) {
         // Clear all data only on successful submission
+        
+        const Geust = localStorage.getItem(`guest_project_${CurrentProjectId}`)
+        if(Geust){
+         localStorage.clear();
+        }
+        localStorage.removeItem('currentSessionId');
+        localStorage.removeItem('currentProjectId');
         dataManager.clearAllData();
+        sessionStorage.clear();
         
         // Show success message
         setSuccess(true);
@@ -412,6 +441,14 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
       } else {
         throw new Error(result.error || 'Failed to submit order');
       }
+           }
+          }
+        } catch (supaErr) {
+          console.warn('Supabase submitOrder exception', supaErr);
+        }
+      }
+
+      
       
     } catch (err) {
       console.error('Error submitting order:', err);
@@ -427,7 +464,13 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
     'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
     'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
   ];
-
+  if (!isUserCheckComplete) {
+    return (
+      <CheckoutContainer>
+        <p>Loading checkout information...</p>
+      </CheckoutContainer>
+    );
+  }
   return (
     <CheckoutContainer>
       {success ? (
@@ -444,7 +487,15 @@ export default function Checkout({ orderData, layoutConfig, drawerDimensions, cu
         <>
           <h1>Checkout</h1>
           <p>Complete your order and we'll start crafting your custom storage solution</p>
-
+          {/* User Status Indicator */}
+          <UserStatusIndicator $isLoggedIn={!!userId}>
+            <UserIcon>{userId ? '👤' : '👥'}</UserIcon>
+            {userId ? (
+              <span>Signed in account</span>
+            ) : (
+              <span>Guest checkout</span>
+            )}
+          </UserStatusIndicator>
           <CheckoutGrid>
             <FormSection>
               <h2>Shipping Information</h2>

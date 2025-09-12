@@ -78,41 +78,32 @@ function UserDataSync() {
   const { user } = useAuth(); 
   const { updateCustomerInfo } = useDataManagement(); 
   const previousUserIdRef = useRef(null);
-  const hasProcessedLoginRef = useRef(false);
 
   useEffect(() => {
-    if (user === undefined) return; // Still loading
+    if (user === undefined) return;
 
     const currentUserId = user?.id || null;
-    
-    // Only process if user actually changed
-    if (currentUserId !== previousUserIdRef.current) {
-      if (user && user.id) {
-        // User logged in - only set if we haven't processed this login yet
-        if (!hasProcessedLoginRef.current) {
-          console.log("Setting customer info from user:", user);
-          const email = user.email || '';
-          const userMetadata = user.user_metadata || {};
-          const displayName = userMetadata.display_name || '';
-          const { firstName, lastName } = parseDisplayName(displayName);
-          const address = userMetadata.address || '';
+    const previousUserId = previousUserIdRef.current;
 
-          updateCustomerInfo({
-            email,
-            firstName,
-            lastName,
-            displayName,
-            address
-          });
-          
-          hasProcessedLoginRef.current = true;
-        }
-      } else if (user === null) {
-        // User logged out - but don't clear customer info
-        console.log("User logged out, preserving customer info");
-        // Don't call updateCustomerInfo with empty data
-        hasProcessedLoginRef.current = false;
+    if (currentUserId !== previousUserId) {
+      if (user && user.id) {
+        // User logged in - update customer info
+        console.log("User logged in, updating customer info:", user);
+        const email = user.email || '';
+        const userMetadata = user.user_metadata || {};
+        const displayName = userMetadata.display_name || '';
+        const { firstName, lastName } = parseDisplayName(displayName);
+        const address = userMetadata.address || '';
+
+        updateCustomerInfo({
+          email,
+          firstName,
+          lastName,
+          displayName,
+          address
+        });
       }
+      // Don't clear customer info on logout - keep it persistent
       
       previousUserIdRef.current = currentUserId;
     }
@@ -417,7 +408,6 @@ function AppContent({ dataManager, defaultBins }) {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ErrorBoundary>
-      <UserDataSync />
     </MainContent>
   );
 }
